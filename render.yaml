@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: semanario-do-integral-app
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GEMINI_API_KEY
+        sync: false # O usuário definirá este valor no painel do Render
