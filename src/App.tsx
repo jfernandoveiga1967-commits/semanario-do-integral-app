@@ -4225,7 +4225,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                       </span>
                     </div>
                     <div translate="no" className="notranslate flex items-center gap-1 shrink-0">
-                      <span className="text-[9px] text-blue-200 italic mr-1">Simular:</span>
+                      <span className="text-[10px] text-blue-200 mr-1">Cargo:</span>
                       {(["auxiliar", "coordenador", "admin"] as const).map((r) => (
                         <button
                           key={r}
