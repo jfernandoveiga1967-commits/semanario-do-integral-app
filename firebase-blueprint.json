@@ -1,0 +1,56 @@
+{
+  "collections": {
+    "usuarios": {
+      "fields": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" }
+      }
+    },
+    "atividades_db": {
+      "fields": {
+        "id": { "type": "string" },
+        "semanarioId": { "type": "string" },
+        "semanarioNumero": { "type": "number" },
+        "periodo": { "type": "string" },
+        "turmaId": { "type": "string" },
+        "turmaNome": { "type": "string" },
+        "nome": { "type": "string" },
+        "titulo": { "type": "string" },
+        "categoria": { "type": "string" },
+        "descricao": { "type": "string" },
+        "adiResponsavel": { "type": "string" },
+        "monitoras": { "type": "string" },
+        "criadoPorEmail": { "type": "string" },
+        "atualizadoEm": { "type": "string" }
+      }
+    },
+    "semanarios": {
+      "fields": {
+        "id": { "type": "string" },
+        "numero": { "type": "number" },
+        "periodo": { "type": "string" },
+        "tema": { "type": "string" },
+        "atividades": { "type": "map" }
+      }
+    },
+    "registros": {
+      "fields": {
+        "status": { "type": "string" },
+        "justificativa": { "type": "string" },
+        "novaProposta": { "type": "string" },
+        "salvoEm": { "type": "string" }
+      }
+    },
+    "midias": {
+      "fields": {
+        "items": { "type": "array" }
+      }
+    },
+    "config": {
+      "fields": {
+        "data": { "type": "map" }
+      }
+    }
+  }
+}
