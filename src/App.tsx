@@ -4211,8 +4211,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                     </button>
                   </div>
                   
-                  <div className="flex items-center justify-between pt-1.5 border-t border-blue-400/10">
-                    <div className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center justify-between gap-y-2 gap-x-1 pt-1.5 border-t border-blue-400/10">
+                    <div className="flex items-center gap-1 shrink-0">
                       <span className="text-[10px] text-blue-200">Perfil:</span>
                       <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-black tracking-wider ${
                         userRole === "admin" 
@@ -4224,7 +4224,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                         {userRole === "admin" ? "Administrador" : userRole === "coordenador" ? "Coordenador" : "Auxiliar"}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div translate="no" className="notranslate flex items-center gap-1 shrink-0">
                       <span className="text-[9px] text-blue-200 italic mr-1">Simular:</span>
                       {(["auxiliar", "coordenador", "admin"] as const).map((r) => (
                         <button
@@ -4270,7 +4270,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                   </button>
                 </div>
               )}
-              <div className="uppercase tracking-[0.2em] text-3xl font-black text-red-600 mb-1 leading-none">INTEGRAL</div>
+              <div translate="no" className="notranslate uppercase tracking-[0.2em] text-3xl font-black text-red-600 mb-1 leading-none">INTEGRAL</div>
               <h1 className="text-2xl font-black mb-1">Semanário de Atividades</h1>
               <div className="flex flex-col gap-1.5 mb-6">
                 <div className="flex items-center justify-between">
