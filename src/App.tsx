@@ -899,7 +899,7 @@ export default function App() {
     if (telaBiblioteca) {
       carregarAtividadesPesquisa();
     }
-  }, [telaBiblioteca]);
+  }, [telaBiblioteca, user, guestMode]);
   const [processandoAI, setProcessandoAI] = useState(false);
   const [errorAI, setErrorAI] = useState(false);
   const [errorMensagemAI, setErrorMensagemAI] = useState("");
