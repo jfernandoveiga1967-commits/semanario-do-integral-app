@@ -526,9 +526,23 @@ export default function App() {
   const isSyncingFromCloud = useRef(false);
   const activeUnsubscribers = useRef<any[]>([]);
 
-  const [turmas, _setTurmas]           = useState(() => loadLocal("semanario_turmas", TURMAS));
+  const isLocalMode = () => {
+    if (user && !guestMode) return false;
+    try {
+      return localStorage.getItem("semanario_guest_mode") === "true";
+    } catch {
+      return false;
+    }
+  };
+
+  const [turmas, _setTurmas]           = useState(() => {
+    if (isLocalMode()) {
+      return loadLocal("semanario_turmas", TURMAS);
+    }
+    return TURMAS;
+  });
   const [atividadesPadrao, _setAtividadesPadrao] = useState(() => {
-    const raw = loadLocal("semanario_atividades_padrao", ATIVIDADES_PADRAO);
+    const raw = isLocalMode() ? loadLocal("semanario_atividades_padrao", ATIVIDADES_PADRAO) : ATIVIDADES_PADRAO;
     const cleaned: any = {};
     Object.keys(raw).forEach((k) => {
       cleaned[k] = (raw[k] || []).map((a: any) => formatarAtividadeUnica(a, k));
@@ -536,7 +550,7 @@ export default function App() {
     return cleaned;
   });
   const [semanarios, _setSemanarios] = useState(() => {
-    const raw = loadLocal("semanario_lista", [SEM_INICIAL]);
+    const raw = isLocalMode() ? loadLocal("semanario_lista", [SEM_INICIAL]) : [];
     return raw.map((s: any) => {
       const cleanedAtvs: any = {};
       if (s.atividades) {
@@ -550,19 +564,19 @@ export default function App() {
       };
     });
   });
-  const [semAtualId, setSemAtualId]   = useState(() => loadLocal("semanario_atual_id", SEM_INICIAL.id));
+  const [semAtualId, setSemAtualId]   = useState(() => isLocalMode() ? loadLocal("semanario_atual_id", SEM_INICIAL.id) : "");
   const [tela, setTela]               = useState("home");
   const [turmaSel, setTurmaSel]       = useState<any>(null);
   const [atividadeSel, setAtividadeSel] = useState<any>(null);
-  const [registros, _setRegistros]     = useState(() => loadLocal("semanario_registros", {}));
+  const [registros, _setRegistros]     = useState(() => isLocalMode() ? loadLocal("semanario_registros", {}) : {});
   const [formData, setFormData]       = useState<any>({});
-  const [midias, _setMidias]           = useState(() => loadLocal("semanario_midias", {}));
+  const [midias, _setMidias]           = useState(() => isLocalMode() ? loadLocal("semanario_midias", {}) : {});
 
   // Intercepting Setters to automatically write modifications to Firebase when user-initiated
   const setTurmas = (val: any) => {
     _setTurmas((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user) {
+      if (user && !guestMode) {
         setDoc(doc(db, "config", "turmas"), { data: next }).catch(e => console.error("Erro ao salvar turmas:", e));
       }
       return next;
@@ -572,7 +586,7 @@ export default function App() {
   const setAtividadesPadrao = (val: any) => {
     _setAtividadesPadrao((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user) {
+      if (user && !guestMode) {
         setDoc(doc(db, "config", "atividades_padrao"), { data: next }).catch(e => console.error("Erro ao salvar atividades padrão:", e));
       }
       return next;
@@ -581,8 +595,34 @@ export default function App() {
 
   const setSemanarios = (val: any) => {
     _setSemanarios((prev: any) => {
-      const next = typeof val === "function" ? val(prev) : val;
-      if (user) {
+      let next = typeof val === "function" ? val(prev) : val;
+      if (user && !guestMode) {
+        if (Array.isArray(next)) {
+          next = next.map((s: any) => {
+            if (!s.atividades) return s;
+            const updatedAtividades = { ...s.atividades };
+            let changed = false;
+            Object.keys(updatedAtividades).forEach((turmaId) => {
+              const arr = updatedAtividades[turmaId] || [];
+              const updatedArr = arr.map((activity: any) => {
+                if (!activity.criadoPorEmail || activity.criadoPorEmail === "Local") {
+                  changed = true;
+                  return {
+                    ...activity,
+                    criadoPorEmail: user.email
+                  };
+                }
+                return activity;
+              });
+              if (changed) {
+                updatedAtividades[turmaId] = updatedArr;
+              }
+            });
+            return { ...s, atividades: updatedAtividades };
+          });
+        }
+      }
+      if (user && !guestMode) {
         syncSemanariosDifference(prev, next);
       }
       return next;
@@ -592,7 +632,7 @@ export default function App() {
   const setRegistros = (val: any) => {
     _setRegistros((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user) {
+      if (user && !guestMode) {
         syncRegistrosDifference(prev, next);
       }
       return next;
@@ -602,7 +642,7 @@ export default function App() {
   const setMidias = (val: any) => {
     _setMidias((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user) {
+      if (user && !guestMode) {
         syncMidiasDifference(prev, next);
       }
       return next;
@@ -641,7 +681,7 @@ export default function App() {
                 descricao: activity.descricao || "",
                 adiResponsavel: activity.adiResponsavel || "",
                 monitoras: activity.monitoras || "",
-                criadoPorEmail: activity.criadoPorEmail || "Local",
+                criadoPorEmail: (!guestMode && user?.email) ? (activity.criadoPorEmail && activity.criadoPorEmail !== "Local" ? activity.criadoPorEmail : user.email) : (activity.criadoPorEmail || "Local"),
                 atualizadoEm: new Date().toISOString()
               }).catch(e => console.error("Erro ao indexar atividade:", e));
             });
@@ -729,6 +769,18 @@ export default function App() {
         setGuestMode(false);
         try { localStorage.setItem("semanario_guest_mode", "false"); } catch {}
         
+        // Clear guest/localStorage data from memory to guarantee Firestore is the single source of truth
+        _setTurmas(TURMAS);
+        const cleanAtvs: any = {};
+        Object.keys(ATIVIDADES_PADRAO).forEach((k) => {
+          cleanAtvs[k] = (ATIVIDADES_PADRAO[k] || []).map((a: any) => formatarAtividadeUnica(a, k));
+        });
+        _setAtividadesPadrao(cleanAtvs);
+        _setSemanarios([]);
+        setSemAtualId("");
+        _setRegistros({});
+        _setMidias({});
+        
         isSyncingFromCloud.current = true;
         try {
           // Subscribe to real-time User Profile updates
@@ -793,10 +845,8 @@ export default function App() {
                 atividades: cleanedAtvs
               });
             });
-            if (sList.length > 0) {
-              sList.sort((a, b) => (b.numero || 0) - (a.numero || 0));
-              _setSemanarios(sList);
-            }
+            sList.sort((a, b) => (b.numero || 0) - (a.numero || 0));
+            _setSemanarios(sList);
             isSyncingFromCloud.current = false;
           }, (error) => {
             console.error("Erro no onSnapshot de semanarios:", error);
@@ -826,6 +876,8 @@ export default function App() {
             isSyncingFromCloud.current = true;
             if (docSnap.exists()) {
               _setTurmas(docSnap.data().data || TURMAS);
+            } else {
+              _setTurmas(TURMAS);
             }
             isSyncingFromCloud.current = false;
           });
@@ -834,6 +886,8 @@ export default function App() {
             isSyncingFromCloud.current = true;
             if (docSnap.exists()) {
               _setAtividadesPadrao(docSnap.data().data || ATIVIDADES_PADRAO);
+            } else {
+              _setAtividadesPadrao(ATIVIDADES_PADRAO);
             }
             isSyncingFromCloud.current = false;
           });
@@ -862,6 +916,12 @@ export default function App() {
       activeUnsubscribers.current.forEach(u => u());
     };
   }, []);
+
+  useEffect(() => {
+    if (semanarios.length > 0 && !semAtualId) {
+      setSemAtualId(semanarios[0].id);
+    }
+  }, [semanarios, semAtualId]);
   const [salvando, setSalvando]       = useState(false);
   const [toast, setToast]             = useState<any>(null);
   const [novoForm, setNovoForm]       = useState<any>({ 
@@ -1617,7 +1677,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
             ...a,
             nome: dadosNovos.nome,
             descricao: dadosNovos.descricao,
-            criadoPorEmail: user?.email || a.criadoPorEmail || "Local"
+            criadoPorEmail: (!guestMode && user?.email) ? user.email : "Local"
           };
         });
         
@@ -1778,8 +1838,9 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     });
   };
 
-  // Save to localStorage when state changes
+  // Save to localStorage when state changes (ONLY in guest/local mode)
   useEffect(() => {
+    if (!isLocalMode()) return;
     try {
       localStorage.setItem("semanario_registros", JSON.stringify(registros));
     } catch (e) {
@@ -1788,6 +1849,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   }, [registros]);
 
   useEffect(() => {
+    if (!isLocalMode()) return;
     try {
       localStorage.setItem("semanario_lista", JSON.stringify(semanarios));
     } catch (e) {
@@ -1796,6 +1858,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   }, [semanarios]);
 
   useEffect(() => {
+    if (!isLocalMode()) return;
     try {
       localStorage.setItem("semanario_turmas", JSON.stringify(turmas));
     } catch (e) {
@@ -1804,6 +1867,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   }, [turmas]);
 
   useEffect(() => {
+    if (!isLocalMode()) return;
     try {
       localStorage.setItem("semanario_atividades_padrao", JSON.stringify(atividadesPadrao));
     } catch (e) {
@@ -1843,6 +1907,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   };
 
   useEffect(() => {
+    if (!isLocalMode()) return;
     try {
       localStorage.setItem("semanario_midias", JSON.stringify(midias));
     } catch (e) {
@@ -1851,6 +1916,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   }, [midias]);
 
   useEffect(() => {
+    if (!isLocalMode()) return;
     try {
       localStorage.setItem("semanario_atual_id", JSON.stringify(semAtualId));
     } catch (e) {
@@ -2163,7 +2229,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   }, []);
 
   const sem = semanarios.find(s => s.id === semAtualId) || semanarios[0];
-  const ATIVIDADES = sem.atividades || {};
+  const ATIVIDADES = sem?.atividades || {};
 
   const chave = (tId: string, aId: string) => `${semAtualId}||${tId}||${aId}`;
   const getReg = (tId: string, aId: string) => registros[chave(tId, aId)] || null;
@@ -2318,7 +2384,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
           nome: `${catPura}:`,
           descricao: "",
           adiResponsavel: "",
-          monitoras: ""
+          monitoras: "",
+          criadoPorEmail: (!guestMode && user?.email) ? user.email : "Local"
         };
       });
     });
@@ -2431,7 +2498,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       descricao: "Toque no lápis para editar...",
       adiResponsavel: "",
       monitoras: "",
-      criadoPorEmail: user?.email || "Local"
+      criadoPorEmail: (!guestMode && user?.email) ? user.email : "Local"
     };
     const activeSemId = sem?.id || semAtualId;
     setSemanarios((prev: any) => prev.map((s: any) => {
@@ -2486,7 +2553,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
           nome: atvParaCopiar.nome,
           descricao: atvParaCopiar.descricao,
           adiResponsavel: atvParaCopiar.adiResponsavel || "",
-          monitoras: atvParaCopiar.monitoras || ""
+          monitoras: atvParaCopiar.monitoras || "",
+          criadoPorEmail: (!guestMode && user?.email) ? user.email : (atvsDest[idx].criadoPorEmail || "Local")
         };
         atvsDest[idx] = formatarAtividadeUnica(updatedAtv, destTurmaId);
       } else {
@@ -2496,7 +2564,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
         const novaAtv = {
           ...atvParaCopiar,
-          id: novoId
+          id: novoId,
+          criadoPorEmail: (!guestMode && user?.email) ? user.email : "Local"
         };
         atvsDest.push(formatarAtividadeUnica(novaAtv, destTurmaId));
       }
