@@ -562,7 +562,7 @@ export default function App() {
   const setTurmas = (val: any) => {
     _setTurmas((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user && !isSyncingFromCloud.current) {
+      if (user) {
         setDoc(doc(db, "config", "turmas"), { data: next }).catch(e => console.error("Erro ao salvar turmas:", e));
       }
       return next;
@@ -572,7 +572,7 @@ export default function App() {
   const setAtividadesPadrao = (val: any) => {
     _setAtividadesPadrao((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user && !isSyncingFromCloud.current) {
+      if (user) {
         setDoc(doc(db, "config", "atividades_padrao"), { data: next }).catch(e => console.error("Erro ao salvar atividades padrão:", e));
       }
       return next;
@@ -582,7 +582,7 @@ export default function App() {
   const setSemanarios = (val: any) => {
     _setSemanarios((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user && !isSyncingFromCloud.current) {
+      if (user) {
         syncSemanariosDifference(prev, next);
       }
       return next;
@@ -592,7 +592,7 @@ export default function App() {
   const setRegistros = (val: any) => {
     _setRegistros((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user && !isSyncingFromCloud.current) {
+      if (user) {
         syncRegistrosDifference(prev, next);
       }
       return next;
@@ -602,7 +602,7 @@ export default function App() {
   const setMidias = (val: any) => {
     _setMidias((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user && !isSyncingFromCloud.current) {
+      if (user) {
         syncMidiasDifference(prev, next);
       }
       return next;
