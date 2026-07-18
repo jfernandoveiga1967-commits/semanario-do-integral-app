@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, ChangeEvent } from "react";
+import { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { jsPDF } from "jspdf";
 import { 
@@ -12,7 +12,9 @@ import {
   collection, 
   onSnapshot, 
   deleteDoc, 
-  writeBatch 
+  writeBatch,
+  query,
+  limit
 } from "./lib/firebase";
 import AuthScreen from "./components/AuthScreen";
 import { 
@@ -764,6 +766,10 @@ export default function App() {
   // Setup Firebase Auth and Realtime sync subscriptions
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      // Clean up any existing subscriptions first to avoid duplicate listeners and memory leaks
+      activeUnsubscribers.current.forEach(u => u());
+      activeUnsubscribers.current = [];
+
       setUser(currentUser);
       if (currentUser) {
         setGuestMode(false);
@@ -802,8 +808,8 @@ export default function App() {
             }
           });
 
-          // Verify if cloud contains semanarios
-          const semSnap = await getDocs(collection(db, "semanarios"));
+          // Verify if cloud contains semanarios (using query and limit to avoid fetching all documents)
+          const semSnap = await getDocs(query(collection(db, "semanarios"), limit(1)));
           if (semSnap.empty) {
             // Cloud is empty. Seed it with current LocalStorage values
             const localSem = loadLocal("semanario_lista", [SEM_INICIAL]);
@@ -913,6 +919,7 @@ export default function App() {
     });
 
     return () => {
+      unsubscribe();
       activeUnsubscribers.current.forEach(u => u());
     };
   }, []);
@@ -954,6 +961,26 @@ export default function App() {
   const [pesquisaCategoria, setPesquisaCategoria] = useState("");
   const [pesquisaTurma, setPesquisaTurma] = useState("");
   const [pesquisaCriador, setPesquisaCriador] = useState("");
+
+  const filteredAtividades = useMemo(() => {
+    const q = pesquisaQuery.toLowerCase().trim();
+    const cat = pesquisaCategoria.toLowerCase().trim();
+    const tId = pesquisaTurma;
+    const criador = pesquisaCriador.toLowerCase().trim();
+
+    return atividadesPesquisa.filter((a: any) => {
+      if (q) {
+        const matchTitle = (a.titulo || "").toLowerCase().includes(q);
+        const matchDesc = (a.descricao || "").toLowerCase().includes(q);
+        const matchName = (a.nome || "").toLowerCase().includes(q);
+        if (!matchTitle && !matchDesc && !matchName) return false;
+      }
+      if (pesquisaCategoria && (a.categoria || "").toLowerCase().trim() !== cat) return false;
+      if (pesquisaTurma && a.turmaId !== tId) return false;
+      if (pesquisaCriador && !(a.criadoPorEmail || "").toLowerCase().includes(criador)) return false;
+      return true;
+    });
+  }, [atividadesPesquisa, pesquisaQuery, pesquisaCategoria, pesquisaTurma, pesquisaCriador]);
 
   useEffect(() => {
     if (telaBiblioteca) {
@@ -4144,21 +4171,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                     ) : (
                       <>
                         <div className="text-xs font-bold text-slate-400 px-1 flex justify-between items-center">
-                          <span>{
-                            atividadesPesquisa.filter((a: any) => {
-                              if (pesquisaQuery) {
-                                const q = pesquisaQuery.toLowerCase();
-                                const matchTitle = (a.titulo || "").toLowerCase().includes(q);
-                                const matchDesc = (a.descricao || "").toLowerCase().includes(q);
-                                const matchName = (a.nome || "").toLowerCase().includes(q);
-                                if (!matchTitle && !matchDesc && !matchName) return false;
-                              }
-                              if (pesquisaCategoria && (a.categoria || "").toLowerCase() !== pesquisaCategoria.toLowerCase()) return false;
-                              if (pesquisaTurma && a.turmaId !== pesquisaTurma) return false;
-                              if (pesquisaCriador && !(a.criadoPorEmail || "").toLowerCase().includes(pesquisaCriador.toLowerCase())) return false;
-                              return true;
-                            }).length
-                          } atividades encontradas</span>
+                          <span>{filteredAtividades.length} atividades encontradas</span>
                           {user && !guestMode && (
                             <span className="text-[10px] text-blue-500 flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Sincronizado com Firestore
@@ -4167,19 +4180,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                         </div>
 
                         <div className="space-y-4">
-                          {atividadesPesquisa.filter((a: any) => {
-                            if (pesquisaQuery) {
-                              const q = pesquisaQuery.toLowerCase();
-                              const matchTitle = (a.titulo || "").toLowerCase().includes(q);
-                              const matchDesc = (a.descricao || "").toLowerCase().includes(q);
-                              const matchName = (a.nome || "").toLowerCase().includes(q);
-                              if (!matchTitle && !matchDesc && !matchName) return false;
-                            }
-                            if (pesquisaCategoria && (a.categoria || "").toLowerCase() !== pesquisaCategoria.toLowerCase()) return false;
-                            if (pesquisaTurma && a.turmaId !== pesquisaTurma) return false;
-                            if (pesquisaCriador && !(a.criadoPorEmail || "").toLowerCase().includes(pesquisaCriador.toLowerCase())) return false;
-                            return true;
-                          }).map((a: any) => {
+                          {filteredAtividades.map((a: any) => {
                             const corTurma = turmas.find(t => t.id === a.turmaId)?.cor || "#64748B";
                             return (
                               <div key={`${a.semanarioId}||${a.turmaId}||${a.id}`} className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4">
@@ -4241,19 +4242,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                             );
                           })}
 
-                          {atividadesPesquisa.filter((a: any) => {
-                            if (pesquisaQuery) {
-                              const q = pesquisaQuery.toLowerCase();
-                              const matchTitle = (a.titulo || "").toLowerCase().includes(q);
-                              const matchDesc = (a.descricao || "").toLowerCase().includes(q);
-                              const matchName = (a.nome || "").toLowerCase().includes(q);
-                              if (!matchTitle && !matchDesc && !matchName) return false;
-                            }
-                            if (pesquisaCategoria && (a.categoria || "").toLowerCase() !== pesquisaCategoria.toLowerCase()) return false;
-                            if (pesquisaTurma && a.turmaId !== pesquisaTurma) return false;
-                            if (pesquisaCriador && !(a.criadoPorEmail || "").toLowerCase().includes(pesquisaCriador.toLowerCase())) return false;
-                            return true;
-                          }).length === 0 && (
+                          {filteredAtividades.length === 0 && (
                             <div className="text-center py-16">
                               <Search className="w-12 h-12 text-slate-200 mx-auto mb-3" />
                               <p className="text-slate-400 font-bold text-sm">Nenhuma atividade corresponde aos filtros de pesquisa.</p>
