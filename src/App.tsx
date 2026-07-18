@@ -3131,7 +3131,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   const totalAtvs = Object.values(ATIVIDADES).reduce((s: number, a: any) => s + (a?.length || 0), 0) as number;
   const regsDoSem = Object.keys(registros).filter(k => k.startsWith(semAtualId + "||"));
   const totalLanc = regsDoSem.length as number;
-  const porStatus = regsDoSem.reduce((acc: any, k) => { const s = registros[k].status; acc[s] = (acc[s]||0)+1; return acc; }, {} as any);
+  const porStatus = regsDoSem.reduce((acc: any, k) => { const s = registros[k]?.status; if (s) acc[s] = (acc[s]||0)+1; return acc; }, {} as any);
 
   const progTurma = (tId: string) => {
     const a = ATIVIDADES[tId] || [];
@@ -3147,6 +3147,25 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
           try { localStorage.setItem("semanario_guest_mode", "true"); } catch {}
         }} 
       />
+    );
+  }
+
+  if (user && !guestMode && semanarios.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 text-slate-100 p-4 font-sans relative overflow-hidden">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-900/20 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-teal-900/20 rounded-full blur-[120px]" />
+        
+        <div className="text-center space-y-4 z-10 max-w-sm">
+          <div className="inline-flex p-3 bg-blue-600/10 rounded-2xl border border-blue-500/20 text-blue-400 mb-2">
+            <RefreshCw className="w-8 h-8 animate-spin" />
+          </div>
+          <h2 className="text-xl font-semibold text-white tracking-tight">Sincronizando com a nuvem...</h2>
+          <p className="text-slate-400 text-sm leading-relaxed">
+            Por favor, aguarde um instante enquanto carregamos suas turmas, temas e atividades de forma segura.
+          </p>
+        </div>
+      </div>
     );
   }
 
