@@ -618,8 +618,9 @@ export default function App() {
     next.forEach(sem => {
       const prevSem = prevMap.get(sem.id);
       if (!prevSem || JSON.stringify(prevSem) !== JSON.stringify(sem)) {
-        // Save semanario document
-        setDoc(doc(db, "semanarios", sem.id), sem).catch(e => console.error("Erro ao salvar semanário:", e));
+        // Save semanario document safely stripping undefined values
+        const cleanedSem = JSON.parse(JSON.stringify(sem));
+        setDoc(doc(db, "semanarios", sem.id), cleanedSem).catch(e => console.error("Erro ao salvar semanário:", e));
 
         // Sync to flat activities database for advanced searching and querying
         if (sem.atividades) {
@@ -628,15 +629,15 @@ export default function App() {
             arr.forEach((activity: any) => {
               const flatId = `${sem.id}||${turmaId}||${activity.id}`;
               setDoc(doc(db, "atividades_db", flatId), {
-                id: activity.id,
-                semanarioId: sem.id,
+                id: activity.id || "",
+                semanarioId: sem.id || "",
                 semanarioNumero: sem.numero || 0,
                 periodo: sem.periodo || "",
-                turmaId: turmaId,
-                turmaNome: turmas.find((t: any) => t.id === turmaId)?.label || turmaId,
+                turmaId: turmaId || "",
+                turmaNome: turmas.find((t: any) => t.id === turmaId)?.label || turmaId || "",
                 nome: activity.nome || "",
-                titulo: obterTituloPuro(activity.nome),
-                categoria: obterCategoriaPura(activity.nome),
+                titulo: obterTituloPuro(activity.nome) || "",
+                categoria: obterCategoriaPura(activity.nome) || "",
                 descricao: activity.descricao || "",
                 adiResponsavel: activity.adiResponsavel || "",
                 monitoras: activity.monitoras || "",
@@ -780,13 +781,25 @@ export default function App() {
             isSyncingFromCloud.current = true;
             const sList: any[] = [];
             snapshot.forEach((d) => {
-              sList.push(d.data());
+              const s = d.data();
+              const cleanedAtvs: any = {};
+              if (s.atividades) {
+                Object.keys(s.atividades).forEach((tId) => {
+                  cleanedAtvs[tId] = (s.atividades[tId] || []).map((a: any) => formatarAtividadeUnica(a, tId));
+                });
+              }
+              sList.push({
+                ...s,
+                atividades: cleanedAtvs
+              });
             });
             if (sList.length > 0) {
               sList.sort((a, b) => (b.numero || 0) - (a.numero || 0));
               _setSemanarios(sList);
             }
             isSyncingFromCloud.current = false;
+          }, (error) => {
+            console.error("Erro no onSnapshot de semanarios:", error);
           });
 
           const unsubReg = onSnapshot(collection(db, "registros"), (snapshot) => {
@@ -1537,10 +1550,13 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
         }
 
         // Salvação incremental a cada atividade gerada com sucesso para evitar perdas
-        setSemanarios((prev: any) => prev.map((s: any) => {
-          if (s.id !== semAtualId) return s;
-          return { ...s, atividades: JSON.parse(JSON.stringify(currentAtividades)) };
-        }));
+        setSemanarios((prev: any) => {
+          const activeSemId = semAtualId || (prev && prev[0]?.id);
+          return prev.map((s: any) => {
+            if (s.id !== activeSemId) return s;
+            return { ...s, atividades: JSON.parse(JSON.stringify(currentAtividades)) };
+          });
+        });
 
         // Cool-down spacing de 4.2s para otimizar e permanecer abaixo do limite de 15 RPM
         if (i < pendentes.length - 1) {
@@ -1578,18 +1594,42 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       descricao: parsed.descricao
     }, turma.id);
     
-    setSemanarios((prev: any) => prev.map((s: any) => {
-      if (s.id !== semAtualId) return s;
-      const atvs = s.atividades[turma.id].map((a: any) => {
-        if (!a.id || !atividade.id || a.id !== atividade.id) return a;
-        return {
-          ...a,
-          nome: dadosNovos.nome,
-          descricao: dadosNovos.descricao
+    setSemanarios((prev: any) => {
+      const activeSemId = semAtualId || (prev && prev[0]?.id);
+      return prev.map((s: any) => {
+        if (s.id !== activeSemId) return s;
+        
+        const semAtividades = s.atividades || {};
+        const turmaAtividades = semAtividades[turma.id] || [];
+        const targetCat = obterCategoriaPura(atividade.nome).toLowerCase();
+        
+        const atvs = turmaAtividades.map((a: any) => {
+          const aCat = obterCategoriaPura(a.nome).toLowerCase();
+          
+          // Match by ID if both have it, otherwise fallback to matching category name or exact name
+          const matchById = a.id && atividade.id && a.id === atividade.id;
+          const matchByCat = aCat === targetCat;
+          const matchByName = a.nome.trim().toLowerCase() === atividade.nome.trim().toLowerCase();
+          
+          if (!matchById && !matchByCat && !matchByName) return a;
+          
+          return {
+            ...a,
+            nome: dadosNovos.nome,
+            descricao: dadosNovos.descricao,
+            criadoPorEmail: user?.email || a.criadoPorEmail || "Local"
+          };
+        });
+        
+        return { 
+          ...s, 
+          atividades: { 
+            ...semAtividades, 
+            [turma.id]: atvs 
+          } 
         };
       });
-      return { ...s, atividades: { ...s.atividades, [turma.id]: atvs } };
-    }));
+    });
     
     setModalGerador(false);
     toast$("Atividade aplicada!");
@@ -1683,16 +1723,19 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
           ...novasAtividades
         }));
         
-        setSemanarios((prev: any) => prev.map((s: any) => {
-          if (s.id !== semAtualId) return s;
-          return { 
-            ...s, 
-            atividades: {
-              ...(s.atividades || {}),
-              ...novasAtividades
-            } 
-          };
-        }));
+        setSemanarios((prev: any) => {
+          const activeSemId = semAtualId || (prev && prev[0]?.id);
+          return prev.map((s: any) => {
+            if (s.id !== activeSemId) return s;
+            return { 
+              ...s, 
+              atividades: {
+                ...(s.atividades || {}),
+                ...novasAtividades
+              } 
+            };
+          });
+        });
         toast$("Conteúdo do PDF distribuído com sucesso!");
       }
     } catch (error) {
