@@ -41,7 +41,8 @@ import {
   Sparkles,
   Wand2,
   Copy,
-  Search
+  Search,
+  Layers
 } from "lucide-react";
 
 // ── Função de ícone removida (usuário pediu para limpar) ──────────────────
@@ -956,7 +957,7 @@ export default function App() {
   const [telaBiblioteca, setTelaBiblioteca] = useState(false);
   const [atividadesPesquisa, setAtividadesPesquisa] = useState<any[]>([]);
   const [carregandoPesquisa, setCarregandoPesquisa] = useState(false);
-  const [bibliotecaAba, setBibliotecaAba] = useState<"semanas" | "pesquisa">("semanas");
+  const [bibliotecaAba, setBibliotecaAba] = useState<"semanas" | "pesquisa" | "exportacao">("semanas");
   const [pesquisaQuery, setPesquisaQuery] = useState("");
   const [pesquisaCategoria, setPesquisaCategoria] = useState("");
   const [pesquisaTurma, setPesquisaTurma] = useState("");
@@ -3154,6 +3155,238 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     toast$("PDF pronto!");
   };
 
+  const obterAtividadesAgrupadasSemana = () => {
+    const grupos: Record<string, { nome: string, atividades: Array<{ turma: any, atividade: any }> }> = {};
+    
+    turmas.forEach((t: any) => {
+      const atvs = ATIVIDADES[t.id] || [];
+      atvs.forEach((a: any) => {
+        const cat = obterCategoriaPura(a.nome);
+        const chaveGrupo = cat.trim();
+        if (!chaveGrupo) return;
+        
+        if (!grupos[chaveGrupo]) {
+          grupos[chaveGrupo] = {
+            nome: chaveGrupo,
+            atividades: []
+          };
+        }
+        
+        grupos[chaveGrupo].atividades.push({
+          turma: t,
+          atividade: a
+        });
+      });
+    });
+    
+    return Object.values(grupos).sort((a, b) => a.nome.localeCompare(b.nome));
+  };
+
+  const baixarAtividadeUnificada = async (grupo: any) => {
+    toast$(`Gerando PDF unificado para ${grupo.nome}...`, "info");
+    
+    const doc = new jsPDF();
+    const margin = 14;
+    let y = 20;
+
+    // Header unificado
+    doc.setFontSize(22);
+    doc.setTextColor(220, 38, 38); // Red-600
+    doc.text("INTEGRAL - EXPORTAÇÃO UNIFICADA", margin, y);
+    
+    doc.setFontSize(13);
+    doc.setTextColor(71, 85, 105); // Slate-600
+    y += 8;
+    doc.text(`Atividade Agrupada: ${grupo.nome.toUpperCase()}`, margin, y);
+    
+    y += 7;
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59);
+    doc.text(`Semana: ${sem.numero} | Período: ${sem.periodo}`, margin, y);
+    
+    y += 5;
+    doc.setDrawColor(203, 213, 225); // Slate-300
+    doc.line(margin, y, 196, y);
+    y += 15;
+
+    // Iterate over all items in the group
+    for (let idx = 0; idx < grupo.atividades.length; idx++) {
+      const item = grupo.atividades[idx];
+      const t = item.turma;
+      const a = item.atividade;
+
+      const reg = getReg(t.id, a.id);
+      const k = chave(t.id, a.id);
+      const fotos = (midias[k] || []).filter((m: any) => m.tipo === "imagem");
+
+      // Check vertical space
+      if (y > 220) {
+        doc.addPage();
+        y = 20;
+      }
+
+      // Class Name Header
+      doc.setFontSize(14);
+      doc.setTextColor(t.cor);
+      doc.setFont("helvetica", "bold");
+      doc.text(t.label.toUpperCase(), margin, y);
+      y += 2;
+      doc.setDrawColor(t.cor);
+      doc.setLineWidth(0.5);
+      doc.line(margin, y, margin + 40, y);
+      y += 8;
+
+      // Theme
+      const tTema = sem.temasTurmas?.[t.id] !== undefined ? sem.temasTurmas[t.id] : (sem.tema || "");
+      if (tTema) {
+        doc.setFontSize(10.5);
+        doc.setTextColor(15, 23, 42);
+        doc.setFont("helvetica", "italic");
+        doc.text(`Tema: ${tTema}`, margin, y);
+        y += 6;
+      }
+
+      // Activity Title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      const titPuro = obterTituloPuro(a.nome);
+      const displayTitle = titPuro && titPuro !== grupo.nome ? `${grupo.nome}: ${titPuro}` : a.nome;
+      doc.text(displayTitle, margin, y);
+      doc.setFont("helvetica", "normal");
+      y += 5;
+
+      // ADI / Monitoras
+      if (a.adiResponsavel || a.monitoras) {
+        doc.setFontSize(9);
+        doc.setTextColor(51, 65, 85);
+        let extra = "";
+        if (a.adiResponsavel) extra += `ADI: ${a.adiResponsavel}  `;
+        if (a.monitoras) extra += `Monitora(s): ${a.monitoras}`;
+        doc.text(extra, margin, y);
+        y += 5;
+      }
+
+      // Description
+      doc.setFontSize(10.5);
+      doc.setTextColor(15, 23, 42);
+      const descLines = doc.splitTextToSize(a.descricao || "(Sem descrição cadastrada)", 180);
+      doc.text(descLines, margin, y);
+      y += descLines.length * 5.2 + 3;
+
+      // Status
+      const status = reg ? STATUS_CONFIG[reg.status] : STATUS_CONFIG.pendente;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(reg ? status.cor : "#374151");
+      doc.text(`${status.emoji} ${status.label}`, margin, y);
+      doc.setFont("helvetica", "normal");
+      y += 6;
+
+      // Feedback
+      if (reg?.status === "realizada" && reg.justificativa) {
+        doc.setFontSize(10);
+        doc.setTextColor(15, 23, 42);
+        doc.setFont("helvetica", "bold");
+        doc.text("Feedback da Realização:", margin + 5, y);
+        doc.setFont("helvetica", "normal");
+        y += 4.5;
+
+        doc.setFontSize(9.5);
+        doc.setTextColor(51, 65, 85);
+        const justLines = doc.splitTextToSize(reg.justificativa, 170);
+        doc.text(justLines, margin + 5, y);
+        y += justLines.length * 5 + 3;
+      }
+
+      // Substitution
+      if (reg?.status === "substituida") {
+        if (reg.novaProposta) {
+          doc.setFontSize(10);
+          doc.setTextColor(180, 83, 9);
+          doc.setFont("helvetica", "bold");
+          doc.text("Nova Proposta Realizada:", margin + 5, y);
+          doc.setFont("helvetica", "normal");
+          y += 4.5;
+
+          doc.setFontSize(9.5);
+          doc.setTextColor(15, 23, 42);
+          const propLines = doc.splitTextToSize(reg.novaProposta, 170);
+          doc.text(propLines, margin + 5, y);
+          y += propLines.length * 5 + 3;
+        }
+        if (reg.justificativa) {
+          doc.setFontSize(10);
+          doc.setTextColor(153, 27, 27);
+          doc.setFont("helvetica", "bold");
+          doc.text("Motivo da Substituição:", margin + 5, y);
+          doc.setFont("helvetica", "normal");
+          y += 4.5;
+
+          doc.setFontSize(9.5);
+          doc.setTextColor(51, 65, 85);
+          const motLines = doc.splitTextToSize(reg.justificativa, 170);
+          doc.text(motLines, margin + 5, y);
+          y += motLines.length * 5 + 3;
+        }
+      }
+
+      // Photos
+      if (fotos.length > 0) {
+        y += 2;
+        let xFoto = margin;
+        const fotoSize = 40;
+        for (const f of fotos) {
+          if (xFoto + fotoSize > 190) {
+            xFoto = margin;
+            y += fotoSize + 4;
+            if (y > 240) {
+              doc.addPage();
+              y = 20;
+            }
+          }
+          try {
+            doc.addImage(f.src, 'JPEG', xFoto, y, fotoSize, fotoSize);
+          } catch (err) {
+            console.error("Erro ao incluir foto unificada:", err);
+          }
+          xFoto += fotoSize + 4;
+        }
+        y += fotoSize + 6;
+      } else {
+        y += 2;
+      }
+
+      // Divider line
+      if (idx < grupo.atividades.length - 1) {
+        y += 4;
+        if (y > 250) {
+          doc.addPage();
+          y = 20;
+        } else {
+          doc.setDrawColor(226, 232, 240); // slate-200
+          doc.setLineWidth(0.2);
+          doc.line(margin, y, 196, y);
+          y += 10;
+        }
+      }
+    }
+
+    // Page Numbers
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`${i}/${pageCount}`, 196, 287, { align: "right" });
+    }
+
+    const cleanName = grupo.nome.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    doc.save(`atividades_unificadas_${cleanName}_S${sem.numero}.pdf`);
+    toast$("PDF Unificado baixado com sucesso!");
+  };
+
   // Stats
   const totalAtvs = Object.values(ATIVIDADES).reduce((s: number, a: any) => s + (a?.length || 0), 0) as number;
   const regsDoSem = Object.keys(registros).filter(k => k.startsWith(semAtualId + "||"));
@@ -4018,7 +4251,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                 </button>
               </div>
 
-              {/* Dual Tab Switcher */}
+              {/* Triple Tab Switcher */}
               <div className="flex bg-slate-200/60 p-1 rounded-xl mb-6 border border-slate-200">
                 <button
                   type="button"
@@ -4039,11 +4272,20 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                     bibliotecaAba === "pesquisa" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
-                  <Search className="w-3.5 h-3.5" /> Pesquisa de Atividades ({atividadesPesquisa.length})
+                  <Search className="w-3.5 h-3.5" /> Pesquisa ({atividadesPesquisa.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBibliotecaAba("exportacao")}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    bibliotecaAba === "exportacao" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" /> Exportação Unificada
                 </button>
               </div>
 
-              {bibliotecaAba === "semanas" ? (
+              {bibliotecaAba === "semanas" && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {semanarios.map((s: any) => (
                     <motion.div
@@ -4092,7 +4334,9 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                     </div>
                   )}
                 </div>
-              ) : (
+              )}
+
+              {bibliotecaAba === "pesquisa" && (
                 <div className="space-y-6">
                   {/* Search and Filters Panel */}
                   <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3">
@@ -4250,6 +4494,74 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                           )}
                         </div>
                       </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {bibliotecaAba === "exportacao" && (
+                <div className="space-y-6">
+                  <div className="bg-blue-50 border border-blue-100 p-5 rounded-2xl">
+                    <h3 className="text-sm font-black text-blue-900 flex items-center gap-2 mb-1.5">
+                      <Sparkles className="w-4 h-4 text-blue-600 animate-pulse" />
+                      Baixar por Atividade (Multi-Turmas)
+                    </h3>
+                    <p className="text-xs text-blue-700 leading-relaxed font-medium">
+                      Esta funcionalidade agrupa as atividades de mesmo nome/categoria de <strong>todas as turmas</strong> na semana selecionada (Semana {sem?.numero}). Clique na atividade desejada para baixar um PDF único contendo os planejamentos, status de realização, feedbacks e fotos de cada turma.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-black text-slate-400 px-1 uppercase tracking-wider">
+                      Atividades Disponíveis na Semana {sem?.numero}
+                    </h4>
+
+                    {obterAtividadesAgrupadasSemana().map((grupo) => {
+                      return (
+                        <div 
+                          key={grupo.nome} 
+                          className="bg-white border border-slate-100 hover:border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row justify-between sm:items-center gap-4"
+                        >
+                          <div className="space-y-2">
+                            <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                              {grupo.nome}
+                            </h3>
+                            <div className="flex flex-wrap gap-1.5 items-center">
+                              <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full mr-1">
+                                {grupo.atividades.length} {grupo.atividades.length === 1 ? "turma" : "turmas"}
+                              </span>
+                              {grupo.atividades.map((item: any) => (
+                                <span 
+                                  key={item.turma.id}
+                                  className="text-[10px] font-black px-2 py-0.5 rounded-full border"
+                                  style={{ 
+                                    color: item.turma.cor, 
+                                    borderColor: `${item.turma.cor}40`, 
+                                    backgroundColor: `${item.turma.cor}10` 
+                                  }}
+                                >
+                                  {item.turma.label}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => baixarAtividadeUnificada(grupo)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer self-start sm:self-auto"
+                          >
+                            <Download className="w-4 h-4" /> Baixar PDF Unificado
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    {obterAtividadesAgrupadasSemana().length === 0 && (
+                      <div className="text-center py-16 bg-white border border-slate-100 rounded-2xl">
+                        <ClipboardList className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                        <p className="text-slate-400 font-bold text-sm">Nenhuma atividade cadastrada na semana atual.</p>
+                      </div>
                     )}
                   </div>
                 </div>
