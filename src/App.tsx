@@ -528,6 +528,7 @@ export default function App() {
 
   const isSyncingFromCloud = useRef(false);
   const activeUnsubscribers = useRef<any[]>([]);
+  const hasInitialWeekBeenSet = useRef(false);
 
   const isLocalMode = () => {
     if (user && !guestMode) return false;
@@ -536,6 +537,17 @@ export default function App() {
     } catch {
       return false;
     }
+  };
+
+  const ordenarSemanarios = (lista: any[]) => {
+    return [...(lista || [])].sort((a: any, b: any) => {
+      const numA = typeof a?.numero === 'number' ? a.numero : parseInt(String(a?.numero || '0'), 10);
+      const numB = typeof b?.numero === 'number' ? b.numero : parseInt(String(b?.numero || '0'), 10);
+      if (numA !== numB) return numB - numA;
+      const dateA = a?.startDate || a?.periodo || a?.id || "";
+      const dateB = b?.startDate || b?.periodo || b?.id || "";
+      return dateB.localeCompare(dateA);
+    });
   };
 
   const [turmas, _setTurmas]           = useState(() => {
@@ -554,7 +566,7 @@ export default function App() {
   });
   const [semanarios, _setSemanarios] = useState(() => {
     const raw = isLocalMode() ? loadLocal("semanario_lista", [SEM_INICIAL]) : [];
-    return raw.map((s: any) => {
+    const cleanedList = raw.map((s: any) => {
       const cleanedAtvs: any = {};
       if (s.atividades) {
         Object.keys(s.atividades).forEach((tId) => {
@@ -565,7 +577,8 @@ export default function App() {
         ...s,
         atividades: cleanedAtvs
       };
-    }).sort((a: any, b: any) => (b.numero || 0) - (a.numero || 0));
+    });
+    return ordenarSemanarios(cleanedList);
   });
   const [semAtualId, setSemAtualId]   = useState("");
   const [tela, setTela]               = useState("home");
@@ -621,7 +634,8 @@ export default function App() {
             }
           });
           return { ...s, atividades: updatedAtividades };
-        }).sort((a: any, b: any) => (b.numero || 0) - (a.numero || 0));
+        });
+        next = ordenarSemanarios(next);
       }
       if (user && !guestMode) {
         syncSemanariosDifference(prev, next);
@@ -768,6 +782,7 @@ export default function App() {
       // Clean up any existing subscriptions first to avoid duplicate listeners and memory leaks
       activeUnsubscribers.current.forEach(u => u());
       activeUnsubscribers.current = [];
+      hasInitialWeekBeenSet.current = false;
 
       setUser(currentUser);
       if (currentUser) {
@@ -850,8 +865,12 @@ export default function App() {
                 atividades: cleanedAtvs
               });
             });
-            sList.sort((a, b) => (b.numero || 0) - (a.numero || 0));
-            _setSemanarios(sList);
+            const sorted = ordenarSemanarios(sList);
+            _setSemanarios(sorted);
+            if (sorted.length > 0 && (!hasInitialWeekBeenSet.current || !semAtualId)) {
+              hasInitialWeekBeenSet.current = true;
+              setSemAtualId(sorted[0].id);
+            }
             isSyncingFromCloud.current = false;
           }, (error) => {
             console.error("Erro no onSnapshot de semanarios:", error);
@@ -911,7 +930,12 @@ export default function App() {
         // Restore LocalStorage backup
         _setTurmas(loadLocal("semanario_turmas", TURMAS));
         _setAtividadesPadrao(loadLocal("semanario_atividades_padrao", ATIVIDADES_PADRAO));
-        _setSemanarios(loadLocal("semanario_lista", [SEM_INICIAL]));
+        const localSem = ordenarSemanarios(loadLocal("semanario_lista", [SEM_INICIAL]));
+        _setSemanarios(localSem);
+        if (localSem.length > 0 && (!hasInitialWeekBeenSet.current || !semAtualId)) {
+          hasInitialWeekBeenSet.current = true;
+          setSemAtualId(localSem[0].id);
+        }
         _setRegistros(loadLocal("semanario_registros", {}));
         _setMidias(loadLocal("semanario_midias", {}));
       }
@@ -925,7 +949,8 @@ export default function App() {
 
   useEffect(() => {
     if (semanarios.length > 0) {
-      if (!semAtualId || !semanarios.some(s => s.id === semAtualId)) {
+      if (!hasInitialWeekBeenSet.current || !semAtualId || !semanarios.some(s => s.id === semAtualId)) {
+        hasInitialWeekBeenSet.current = true;
         setSemAtualId(semanarios[0].id);
       }
     }
@@ -2257,9 +2282,10 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   }, []);
 
   const sem = semanarios.find(s => s.id === semAtualId) || semanarios[0];
+  const activeSemId = sem?.id || semAtualId || "";
   const ATIVIDADES = sem?.atividades || {};
 
-  const chave = (tId: string, aId: string) => `${semAtualId}||${tId}||${aId}`;
+  const chave = (tId: string, aId: string) => `${activeSemId}||${tId}||${aId}`;
   const getReg = (tId: string, aId: string) => registros[chave(tId, aId)] || null;
 
   const toast$ = (msg: string, tipo = "ok") => {
@@ -3389,7 +3415,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
   // Stats
   const totalAtvs = Object.values(ATIVIDADES).reduce((s: number, a: any) => s + (a?.length || 0), 0) as number;
-  const regsDoSem = Object.keys(registros).filter(k => k.startsWith(semAtualId + "||"));
+  const regsDoSem = Object.keys(registros).filter(k => k.startsWith(activeSemId + "||"));
   const totalLanc = regsDoSem.length as number;
   const porStatus = regsDoSem.reduce((acc: any, k) => { const s = registros[k]?.status; if (s) acc[s] = (acc[s]||0)+1; return acc; }, {} as any);
 
@@ -4221,7 +4247,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
               <div className="p-4 bg-slate-50 border-t border-slate-100 text-center">
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                  Baseado no tema: <span className="text-blue-500">{semanarios.find(s => s.id === semAtualId)?.tema || "Geral"}</span>
+                  Baseado no tema: <span className="text-blue-500">{sem?.tema || "Geral"}</span>
                 </p>
               </div>
             </motion.div>
@@ -4298,14 +4324,14 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                         toast$(`Semana ${s.numero} selecionada.`);
                       }}
                       className={`p-6 rounded-2xl border-2 transition-all cursor-pointer flex justify-between items-center ${
-                        s.id === semAtualId 
+                        s.id === activeSemId 
                           ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200" 
                           : "bg-white border-slate-100 hover:border-blue-200 text-slate-800 shadow-sm"
                       }`}
                     >
                       <div className="flex items-center gap-4">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl ${
-                          s.id === semAtualId ? "bg-white/20" : "bg-slate-100 text-slate-400"
+                          s.id === activeSemId ? "bg-white/20" : "bg-slate-100 text-slate-400"
                         }`}>
                           {s.numero}
                         </div>
@@ -4313,13 +4339,13 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                           <div className="font-black text-base">Semana {s.numero}</div>
                           <div className="text-xs font-bold opacity-70">{s.periodo}</div>
                           {s.tema && (
-                            <div className={`text-[10px] italic mt-0.5 max-w-[160px] truncate ${s.id === semAtualId ? 'text-white/80' : 'text-slate-400'}`}>
+                            <div className={`text-[10px] italic mt-0.5 max-w-[160px] truncate ${s.id === activeSemId ? 'text-white/80' : 'text-slate-400'}`}>
                               Tema: {s.tema}
                             </div>
                           )}
                         </div>
                       </div>
-                      {s.id === semAtualId && (
+                      {s.id === activeSemId && (
                         <div className="bg-white/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider">
                           Atual
                         </div>
