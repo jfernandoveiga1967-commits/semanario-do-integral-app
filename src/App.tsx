@@ -565,9 +565,9 @@ export default function App() {
         ...s,
         atividades: cleanedAtvs
       };
-    });
+    }).sort((a: any, b: any) => (b.numero || 0) - (a.numero || 0));
   });
-  const [semAtualId, setSemAtualId]   = useState(() => isLocalMode() ? loadLocal("semanario_atual_id", SEM_INICIAL.id) : "");
+  const [semAtualId, setSemAtualId]   = useState("");
   const [tela, setTela]               = useState("home");
   const [turmaSel, setTurmaSel]       = useState<any>(null);
   const [atividadeSel, setAtividadeSel] = useState<any>(null);
@@ -599,31 +599,29 @@ export default function App() {
   const setSemanarios = (val: any) => {
     _setSemanarios((prev: any) => {
       let next = typeof val === "function" ? val(prev) : val;
-      if (user && !guestMode) {
-        if (Array.isArray(next)) {
-          next = next.map((s: any) => {
-            if (!s.atividades) return s;
-            const updatedAtividades = { ...s.atividades };
-            let changed = false;
-            Object.keys(updatedAtividades).forEach((turmaId) => {
-              const arr = updatedAtividades[turmaId] || [];
-              const updatedArr = arr.map((activity: any) => {
-                if (!activity.criadoPorEmail || activity.criadoPorEmail === "Local") {
-                  changed = true;
-                  return {
-                    ...activity,
-                    criadoPorEmail: user.email
-                  };
-                }
-                return activity;
-              });
-              if (changed) {
-                updatedAtividades[turmaId] = updatedArr;
+      if (Array.isArray(next)) {
+        next = next.map((s: any) => {
+          if (!s.atividades) return s;
+          const updatedAtividades = { ...s.atividades };
+          let changed = false;
+          Object.keys(updatedAtividades).forEach((turmaId) => {
+            const arr = updatedAtividades[turmaId] || [];
+            const updatedArr = arr.map((activity: any) => {
+              if ((!activity.criadoPorEmail || activity.criadoPorEmail === "Local") && user?.email) {
+                changed = true;
+                return {
+                  ...activity,
+                  criadoPorEmail: user.email
+                };
               }
+              return activity;
             });
-            return { ...s, atividades: updatedAtividades };
+            if (changed) {
+              updatedAtividades[turmaId] = updatedArr;
+            }
           });
-        }
+          return { ...s, atividades: updatedAtividades };
+        }).sort((a: any, b: any) => (b.numero || 0) - (a.numero || 0));
       }
       if (user && !guestMode) {
         syncSemanariosDifference(prev, next);
@@ -926,8 +924,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (semanarios.length > 0 && !semAtualId) {
-      setSemAtualId(semanarios[0].id);
+    if (semanarios.length > 0) {
+      if (!semAtualId || !semanarios.some(s => s.id === semAtualId)) {
+        setSemAtualId(semanarios[0].id);
+      }
     }
   }, [semanarios, semAtualId]);
   const [salvando, setSalvando]       = useState(false);
