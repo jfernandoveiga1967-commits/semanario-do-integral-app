@@ -26,43 +26,34 @@ async function startServer() {
     }
   });
 
-  // Função para gerar conteúdo usando sequência de modelos dinâmicos com fallback transparente de cota
+  // Função para gerar conteúdo usando sequência de modelos dinâmicos com fallback transparente
   async function generateJSON(params: { model?: string; contents: any; config?: any }) {
-    const primaryModel = params.model || "gemini-3.5-flash";
-    try {
-      console.log(`[SERVER] Tentando gerar com o modelo primário: ${primaryModel}`);
-      return await ai.models.generateContent({
-        ...params,
-        model: primaryModel
-      });
-    } catch (error: any) {
-      const errorMsg = (error?.message || "").toLowerCase();
-      const status = error?.status || 0;
-      
-      const isQuotaError = 
-        status === 429 ||
-        errorMsg.includes("429") || 
-        errorMsg.includes("resource_exhausted") || 
-        errorMsg.includes("quota") || 
-        errorMsg.includes("cota") || 
-        errorMsg.includes("limit") || 
-        errorMsg.includes("exhausted");
+    const requestedModel = params.model && params.model !== "gemini-3.5-flash" ? params.model : "gemini-3.6-flash";
+    const modelsToTry = [
+      requestedModel,
+      "gemini-3.6-flash",
+      "gemini-3.1-flash-lite",
+      "gemini-flash-latest"
+    ];
 
-      if (isQuotaError) {
-        console.warn(`[SERVER] Limite de cota/recurso atingido no modelo ${primaryModel}. Redirecionando transparentemente para o modelo de fallback altamente disponível: gemini-3.1-flash-lite...`);
-        try {
-          return await ai.models.generateContent({
-            ...params,
-            model: "gemini-3.1-flash-lite"
-          });
-        } catch (fallbackError: any) {
-          console.error("[SERVER] Erro também no modelo de fallback:", fallbackError);
-          throw fallbackError;
-        }
+    // Modelos únicos na ordem de tentativa
+    const uniqueModels = [...new Set(modelsToTry)];
+    let lastError: any = null;
+
+    for (const modelName of uniqueModels) {
+      try {
+        console.log(`[SERVER] Tentando gerar com o modelo: ${modelName}`);
+        return await ai.models.generateContent({
+          ...params,
+          model: modelName
+        });
+      } catch (error: any) {
+        lastError = error;
+        console.warn(`[SERVER] Falha no modelo ${modelName}: ${error?.message || error}. Tentando próximo modelo de fallback...`);
       }
-      
-      throw error;
     }
+
+    throw lastError;
   }
 
   // Servir rotas PWA
@@ -92,7 +83,7 @@ async function startServer() {
       const { base64Data, turmasContext } = req.body;
       
       const response = await generateJSON({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.6-flash",
         contents: [
           {
             inlineData: {
@@ -899,7 +890,7 @@ REGRA CRÍTICA COMPLEMENTAR: Gere estritamente apenas UMA única atividade pedag
 Gere um conteúdo fluido, humano e pronto para uso escolar.`;
 
       const response = await generateJSON({
-        model: "gemini-3.5-flash",
+        model: "gemini-3.6-flash",
         contents: userPrompt,
         config: {
           systemInstruction: systemPrompt
