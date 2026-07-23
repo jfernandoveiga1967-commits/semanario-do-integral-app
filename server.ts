@@ -65,6 +65,27 @@ async function startServer() {
     }
   }
 
+  // Servir rotas PWA
+  app.get('/manifest.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/manifest+json');
+    res.sendFile(path.join(process.cwd(), 'public', 'manifest.json'));
+  });
+
+  app.get('/sw.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
+    res.sendFile(path.join(process.cwd(), 'public', 'sw.js'));
+  });
+
+  app.get('/icon.svg', (req, res) => {
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.sendFile(path.join(process.cwd(), 'public', 'icon.svg'));
+  });
+
+  app.get(['/pwa-192.png', '/pwa-512.png', '/apple-touch-icon.png', '/apple-touch-icon-precomposed.png'], (req, res) => {
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.sendFile(path.join(process.cwd(), 'public', 'icon.svg'));
+  });
+
   // API para importar PDF
   app.post("/api/import-pdf", async (req, res) => {
     try {

@@ -17,6 +17,7 @@ import {
   limit
 } from "./lib/firebase";
 import AuthScreen from "./components/AuthScreen";
+import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { 
   ChevronLeft, 
   ChevronRight,
@@ -3457,6 +3458,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans max-w-md mx-auto shadow-xl ring-1 ring-slate-200">
+      <PWAInstallPrompt bannerOnly={true} />
       <AnimatePresence mode="wait">
         {toast && (
           <motion.div 
@@ -4728,8 +4730,13 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                   </button>
                 </div>
               )}
-              <div translate="no" className="notranslate uppercase tracking-[0.2em] text-3xl font-black text-red-600 mb-1 leading-none">INTEGRAL</div>
-              <h1 className="text-2xl font-black mb-1">Semanário de Atividades</h1>
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <div>
+                  <div translate="no" className="notranslate uppercase tracking-[0.2em] text-3xl font-black text-red-600 leading-none">INTEGRAL</div>
+                  <h1 className="text-2xl font-black">Semanário de Atividades</h1>
+                </div>
+                <PWAInstallPrompt />
+              </div>
               <div className="flex flex-col gap-1.5 mb-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-white/90 text-[13px] font-bold">

@@ -1,6 +1,6 @@
 {
-  "name": "Semanário Integral",
-  "description": "Sistema de gestão e acompanhamento de atividades para o período integral escolar com persistência de dados.",
+  "name": "Semanário do Integral",
+  "description": "Sistema de gestão e acompanhamento de atividades do Semanário do Integral com aplicativo PWA instalável no celular.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
