@@ -963,6 +963,73 @@ Gere um conteúdo fluido, humano e pronto para uso escolar.`;
     }
   });
 
+  // API para Revisar e Melhorar Texto de Atividade com IA (Exclusivo para Admins)
+  app.post("/api/improve-activity", async (req, res) => {
+    const startTime = Date.now();
+    try {
+      const { tema, nome, descricao, turmaNome } = req.body;
+
+      const systemPrompt = `Você é um Consultor Pedagógico e Especialista em Curadoria Educacional da Escola Crescer (Educação Infantil e Ensino Fundamental).
+Sua missão é realizar a REVISÃO, CORREÇÃO E MELHORIA DE TEXTO de uma atividade pedagógica individual antes de sua aprovação pelo Administrador.
+
+Diretrizes de Curadoria Pedagógica (OBRIGATÓRIAS):
+1. Corrigir e Revisar: Corrija rigorosamente todos os erros de ortografia, gramática, pontuação e concordância verbal/nominal.
+2. Adequação Pedagógica: Eleve a linguagem para um tom estritamente profissional, claro, respeitoso e alinhado às diretrizes educacionais da Educação Infantil ou Ensino Fundamental.
+3. Enriquecimento do Conteúdo: Se o texto da proposta ou dinâmica estiver muito vago, rascunhado ou sucinto, complemente a proposta e o passo a passo com objetivos claros, sequência pedagógica bem estruturada e orientações práticas de acolhimento.
+4. Formatação Editorial e Limpa:
+   - NÃO utilize marcações em negrito Markdown (sem **, sem #, sem asteriscos).
+   - Utilize cabeçalhos simples e organizados (ex: Proposta:, Dinâmica:, Materiais:, Importante:).
+   - REGRA DO TEXTO DISCRICIONÁRIO: Use estritamente CAIXA BAIXA (letras minúsculas) no corpo dos parágrafos e descrições, exceto no início de frases e nomes próprios/Deus/Jesus.
+
+Retorne EXATAMENTE um objeto JSON válido (sem qualquer texto antes ou depois) com o seguinte formato:
+{
+  "tema": "Tema da semana aprimorado",
+  "nome": "Título ou Atividade Proposta aprimorada",
+  "descricao": "Texto da descrição enriquecido, corrigido e formatado"
+}`;
+
+      const userPrompt = `Por favor, revise e aprimore o seguinte planejamento de atividade pedagógica:
+Turma Alvo: ${turmaNome || "Educação Infantil / Ensino Fundamental"}
+Tema da Semana (Atual): ${tema || "Geral"}
+Atividade Proposta / Título (Atual): ${nome || "Atividade Pedagógica"}
+Descrição / Conteúdo (Atual): ${descricao || "Sem descrição"}
+
+Aplique todas as regras de curadoria e retorne o JSON com os campos 'tema', 'nome' e 'descricao' devidamente aprimorados.`;
+
+      const response = await generateJSON({
+        model: "gemini-3.6-flash",
+        contents: userPrompt,
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json"
+        }
+      });
+
+      if (!response.text) {
+        throw new Error("A IA não retornou conteúdo.");
+      }
+
+      let rawText = response.text.trim();
+      if (rawText.startsWith("```")) {
+        rawText = rawText.replace(/^```json/i, "").replace(/^```/, "").replace(/```$/, "").trim();
+      }
+
+      const parsed = JSON.parse(rawText);
+
+      console.log(`[SERVER] Aprimoramento de atividade concluído em ${Date.now() - startTime}ms`);
+      res.json({
+        tema: parsed.tema || tema || "",
+        nome: parsed.nome || nome || "",
+        descricao: parsed.descricao || descricao || ""
+      });
+    } catch (error: any) {
+      console.error("Erro na revisão por IA:", error);
+      res.status(500).json({
+        error: error.message || "Houve um problema ao processar a revisão por IA."
+      });
+    }
+  });
+
   // Vite middleware para desenvolvimento
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

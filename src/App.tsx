@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, ChangeEvent } from "react";
+import { useState, useEffect, useRef, useMemo, ChangeEvent, FormEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { jsPDF } from "jspdf";
 import { 
@@ -8,12 +8,14 @@ import {
   onAuthStateChanged, 
   doc, 
   setDoc, 
+  getDoc,
   getDocs, 
   collection, 
   onSnapshot, 
   deleteDoc, 
   writeBatch,
   query,
+  where,
   limit
 } from "./lib/firebase";
 import AuthScreen from "./components/AuthScreen";
@@ -43,7 +45,16 @@ import {
   Wand2,
   Copy,
   Search,
-  Layers
+  Layers,
+  Users,
+  ShieldCheck,
+  UserPlus,
+  ShieldAlert,
+  UserCog,
+  Mail,
+  Shield,
+  BookOpen,
+  Check
 } from "lucide-react";
 
 // ── Função de ícone removida (usuário pediu para limpar) ──────────────────
@@ -499,6 +510,12 @@ function formatarAtividadeUnica(a: any, turmaId?: string): any {
   };
 }
 
+export const isDocenteRole = (role?: string): boolean => {
+  if (!role) return true;
+  const r = role.toLowerCase().trim();
+  return r === "auxiliar" || r === "teacher" || r === "professor" || r === "docente";
+};
+
 export default function App() {
   // Funções de carregamento inicial
   const loadLocal = (key: string, def: any) => {
@@ -511,13 +528,8 @@ export default function App() {
   };
 
   const [user, setUser] = useState<any>(null);
-  const [userRole, setUserRole] = useState<"admin" | "coordenador" | "auxiliar">("auxiliar");
-
-  const canEditAtv = (atv: any) => {
-    if (!user || guestMode) return true; // full access in guest/offline mode
-    if (userRole === "admin" || userRole === "coordenador") return true;
-    return !atv.criadoPorEmail || atv.criadoPorEmail === user.email || atv.criadoPorEmail === "Local";
-  };
+  const [userRole, setUserRole] = useState<"admin" | "coordenador" | "auxiliar" | "teacher" | "professor">("auxiliar");
+  const [userTurmas, setUserTurmas] = useState<string[]>([]);
 
   const [guestMode, setGuestMode] = useState(() => {
     try {
@@ -526,6 +538,337 @@ export default function App() {
       return false;
     }
   });
+
+  // Estados para Gerenciamento de Usuários (Apenas Admin)
+  const [listaUsuarios, setListaUsuarios] = useState<any[]>([]);
+  const [filtroUsuario, setFiltroUsuario] = useState("");
+  const [novoEmailUsuario, setNovoEmailUsuario] = useState("");
+  const [novoCargoUsuario, setNovoCargoUsuario] = useState<"admin" | "coordenador" | "auxiliar" | "teacher" | "professor">("auxiliar");
+  const [novasTurmasUsuario, setNovasTurmasUsuario] = useState<string[]>([]);
+  const [salvandoUsuario, setSalvandoUsuario] = useState(false);
+  const [usuarioParaExcluir, setUsuarioParaExcluir] = useState<any | null>(null);
+  const [excluindoUsuario, setExcluindoUsuario] = useState(false);
+
+  // Inscrição em tempo real na coleção "usuarios" para administradores com consolidação por e-mail
+  useEffect(() => {
+    if (!user || guestMode || userRole !== "admin") return;
+    const unsub = onSnapshot(collection(db, "usuarios"), (snapshot) => {
+      const mapByEmail = new Map<string, {
+        id: string;
+        email: string;
+        uid: string;
+        role: "admin" | "coordenador" | "auxiliar";
+        turmas: string[];
+        legacyDocIds: string[];
+        updatedAt?: string;
+        createdAt?: string;
+      }>();
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const docId = docSnap.id;
+        const rawEmail = (data.email || (docId.includes("@") ? docId : "")).trim().toLowerCase();
+        const emailKey = rawEmail || docId;
+
+        const docRole = (data.role as string) || "auxiliar";
+        const docTurmas = Array.isArray(data.turmas) ? data.turmas : [];
+        const docUid = data.uid || (docId !== emailKey ? docId : "");
+
+        if (!mapByEmail.has(emailKey)) {
+          mapByEmail.set(emailKey, {
+            id: emailKey,
+            email: rawEmail || emailKey,
+            uid: docUid,
+            role: docRole as any,
+            turmas: docTurmas,
+            legacyDocIds: docId !== emailKey ? [docId] : [],
+            updatedAt: data.updatedAt || data.createdAt || "",
+            createdAt: data.createdAt || ""
+          });
+        } else {
+          const existing = mapByEmail.get(emailKey)!;
+          
+          if (docId !== emailKey && !existing.legacyDocIds.includes(docId)) {
+            existing.legacyDocIds.push(docId);
+          }
+
+          if (!existing.uid && docUid) {
+            existing.uid = docUid;
+          }
+
+          // Prioridade de cargo: admin > coordenador > auxiliar / teacher / professor
+          const rolePriority: Record<string, number> = { admin: 3, coordenador: 2, auxiliar: 1, teacher: 1, professor: 1, docente: 1 };
+          if ((rolePriority[docRole] || 1) > (rolePriority[existing.role] || 1)) {
+            existing.role = docRole as any;
+          }
+
+          // União de turmas
+          const turmasSet = new Set([...existing.turmas, ...docTurmas]);
+          existing.turmas = Array.from(turmasSet);
+
+          if (data.updatedAt && (!existing.updatedAt || data.updatedAt > existing.updatedAt)) {
+            existing.updatedAt = data.updatedAt;
+          }
+        }
+      });
+
+      const list = Array.from(mapByEmail.values());
+      list.sort((a, b) => (a.email || "").localeCompare(b.email || ""));
+      setListaUsuarios(list);
+    }, (err) => {
+      console.error("Erro ao carregar lista de usuários:", err);
+    });
+    return () => unsub();
+  }, [user, guestMode, userRole]);
+
+  const usuariosFiltrados = useMemo(() => {
+    if (!filtroUsuario.trim()) return listaUsuarios;
+    const term = filtroUsuario.trim().toLowerCase();
+    return listaUsuarios.filter(u => 
+      (u.email || "").toLowerCase().includes(term) || 
+      (u.role || "").toLowerCase().includes(term) ||
+      (u.id || "").toLowerCase().includes(term)
+    );
+  }, [listaUsuarios, filtroUsuario]);
+
+  // Função para deletar registros legados duplicados no Firestore
+  const limparDuplicatasLegadas = async (legacyDocIds?: string[]) => {
+    if (Array.isArray(legacyDocIds) && legacyDocIds.length > 0) {
+      for (const legacyId of legacyDocIds) {
+        try {
+          await deleteDoc(doc(db, "usuarios", legacyId));
+          console.log(`Documento duplicado legado removido do Firestore: ${legacyId}`);
+        } catch (err) {
+          console.warn(`Erro ao excluir documento legado ${legacyId}:`, err);
+        }
+      }
+    }
+  };
+
+  const consolidarELimparDuplicatasGlobais = async () => {
+    try {
+      let count = 0;
+      for (const u of listaUsuarios) {
+        if (u.legacyDocIds && u.legacyDocIds.length > 0) {
+          await setDoc(doc(db, "usuarios", u.id), {
+            email: u.email || u.id,
+            role: u.role,
+            turmas: u.turmas,
+            uid: u.uid || "",
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+
+          for (const legacyId of u.legacyDocIds) {
+            await deleteDoc(doc(db, "usuarios", legacyId));
+            count++;
+          }
+        }
+      }
+      if (count > 0) {
+        toast$(`${count} registro(s) duplicado(s) unificado(s) e removido(s) do Firestore!`);
+      } else {
+        toast$("Todos os registros já estão padronizados sem duplicatas.");
+      }
+    } catch (err) {
+      console.error("Erro ao consolidar duplicatas:", err);
+      toast$("Erro ao limpar duplicatas no Firestore.", "erro");
+    }
+  };
+
+  const confirmarExclusaoUsuario = async () => {
+    if (!usuarioParaExcluir) return;
+    const targetUser = usuarioParaExcluir;
+    setExcluindoUsuario(true);
+
+    try {
+      const rawEmail = (targetUser.email || "").trim().toLowerCase();
+      const emailKey = rawEmail || targetUser.id;
+
+      // Deleta documento principal por chave de e-mail
+      await deleteDoc(doc(db, "usuarios", emailKey)).catch((e) => console.warn("Erro ao excluir por e-mail:", e));
+
+      // Deleta documento por UID se for diferente da chave de e-mail
+      if (targetUser.uid && targetUser.uid !== emailKey) {
+        await deleteDoc(doc(db, "usuarios", targetUser.uid)).catch((e) => console.warn("Erro ao excluir por UID:", e));
+      }
+
+      if (targetUser.id && targetUser.id !== emailKey && targetUser.id !== targetUser.uid) {
+        await deleteDoc(doc(db, "usuarios", targetUser.id)).catch((e) => console.warn("Erro ao excluir por doc.id:", e));
+      }
+
+      // Deleta quaisquer documentos legados agrupados
+      if (Array.isArray(targetUser.legacyDocIds) && targetUser.legacyDocIds.length > 0) {
+        await limparDuplicatasLegadas(targetUser.legacyDocIds);
+      }
+
+      toast$(`Usuário ${rawEmail || targetUser.id} foi excluído com sucesso!`);
+      setUsuarioParaExcluir(null);
+    } catch (err: any) {
+      console.error("Erro ao excluir usuário:", err);
+      toast$("Erro ao excluir usuário no Firestore.", "erro");
+    } finally {
+      setExcluindoUsuario(false);
+    }
+  };
+
+  const alterarCargoUsuario = async (
+    userIdOrDocId: string, 
+    userEmail: string, 
+    novoCargo: "admin" | "coordenador" | "auxiliar",
+    legacyDocIds?: string[]
+  ) => {
+    try {
+      const emailKey = userEmail && userEmail.trim() ? userEmail.trim().toLowerCase() : userIdOrDocId;
+      await setDoc(doc(db, "usuarios", emailKey), {
+        uid: userIdOrDocId !== emailKey ? userIdOrDocId : "",
+        email: userEmail ? userEmail.trim().toLowerCase() : emailKey,
+        role: novoCargo,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      const idsToDelete = new Set<string>(legacyDocIds || []);
+      if (userIdOrDocId && userIdOrDocId !== emailKey) {
+        idsToDelete.add(userIdOrDocId);
+      }
+      await limparDuplicatasLegadas(Array.from(idsToDelete));
+
+      const nomeCargo = novoCargo === "admin" ? "Administrador" : novoCargo === "coordenador" ? "Coordenador" : "Auxiliar / Professor";
+      toast$(`Cargo de ${userEmail || emailKey} alterado para ${nomeCargo}!`);
+    } catch (err: any) {
+      console.error("Erro ao alterar cargo do usuário:", err);
+      toast$("Erro ao atualizar cargo no Firestore.", "erro");
+    }
+  };
+
+  const alternarTurmaUsuario = async (
+    userIdOrDocId: string, 
+    userEmail: string, 
+    turmaId: string, 
+    turmasAtuais: string[],
+    legacyDocIds?: string[]
+  ) => {
+    try {
+      const emailKey = userEmail && userEmail.trim() ? userEmail.trim().toLowerCase() : userIdOrDocId;
+      const temTurma = turmasAtuais.includes(turmaId);
+      const novaLista = temTurma 
+        ? turmasAtuais.filter(id => id !== turmaId) 
+        : [...turmasAtuais, turmaId];
+
+      await setDoc(doc(db, "usuarios", emailKey), {
+        uid: userIdOrDocId !== emailKey ? userIdOrDocId : "",
+        email: userEmail ? userEmail.trim().toLowerCase() : emailKey,
+        turmas: novaLista,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      const idsToDelete = new Set<string>(legacyDocIds || []);
+      if (userIdOrDocId && userIdOrDocId !== emailKey) {
+        idsToDelete.add(userIdOrDocId);
+      }
+      await limparDuplicatasLegadas(Array.from(idsToDelete));
+
+      toast$("Turmas atribuídas atualizadas!");
+    } catch (err: any) {
+      console.error("Erro ao atualizar turmas do usuário:", err);
+      toast$("Erro ao atualizar turmas no Firestore.", "erro");
+    }
+  };
+
+  const selecionarTodasTurmasUsuario = async (
+    userIdOrDocId: string, 
+    userEmail: string, 
+    todasTurmasIds: string[],
+    legacyDocIds?: string[]
+  ) => {
+    try {
+      const emailKey = userEmail && userEmail.trim() ? userEmail.trim().toLowerCase() : userIdOrDocId;
+      await setDoc(doc(db, "usuarios", emailKey), {
+        uid: userIdOrDocId !== emailKey ? userIdOrDocId : "",
+        email: userEmail ? userEmail.trim().toLowerCase() : emailKey,
+        turmas: todasTurmasIds,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      const idsToDelete = new Set<string>(legacyDocIds || []);
+      if (userIdOrDocId && userIdOrDocId !== emailKey) {
+        idsToDelete.add(userIdOrDocId);
+      }
+      await limparDuplicatasLegadas(Array.from(idsToDelete));
+
+      toast$("Todas as turmas foram vinculadas ao usuário!");
+    } catch (err: any) {
+      console.error("Erro ao vincular todas as turmas:", err);
+      toast$("Erro ao atualizar no Firestore.", "erro");
+    }
+  };
+
+  const desmarcarTodasTurmasUsuario = async (
+    userIdOrDocId: string, 
+    userEmail: string,
+    legacyDocIds?: string[]
+  ) => {
+    try {
+      const emailKey = userEmail && userEmail.trim() ? userEmail.trim().toLowerCase() : userIdOrDocId;
+      await setDoc(doc(db, "usuarios", emailKey), {
+        uid: userIdOrDocId !== emailKey ? userIdOrDocId : "",
+        email: userEmail ? userEmail.trim().toLowerCase() : emailKey,
+        turmas: [],
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      const idsToDelete = new Set<string>(legacyDocIds || []);
+      if (userIdOrDocId && userIdOrDocId !== emailKey) {
+        idsToDelete.add(userIdOrDocId);
+      }
+      await limparDuplicatasLegadas(Array.from(idsToDelete));
+
+      toast$("Todas as turmas foram desvinculadas.");
+    } catch (err: any) {
+      console.error("Erro ao desmarcar turmas:", err);
+      toast$("Erro ao atualizar no Firestore.", "erro");
+    }
+  };
+
+  const adicionarOuAtualizarUsuarioPorEmail = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!novoEmailUsuario.trim()) return;
+    const emailLimpo = novoEmailUsuario.trim().toLowerCase();
+
+    setSalvandoUsuario(true);
+    try {
+      const nomeCargo = novoCargoUsuario === "admin" ? "Administrador" : novoCargoUsuario === "coordenador" ? "Coordenador" : "Auxiliar / Professor";
+      
+      const existing = listaUsuarios.find(u => (u.email || "").toLowerCase() === emailLimpo || u.id === emailLimpo);
+      const legacyDocIdsToClean = existing?.legacyDocIds || [];
+
+      await setDoc(doc(db, "usuarios", emailLimpo), {
+        email: emailLimpo,
+        role: novoCargoUsuario,
+        turmas: novasTurmasUsuario,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      if (legacyDocIdsToClean.length > 0) {
+        await limparDuplicatasLegadas(legacyDocIdsToClean);
+      }
+
+      toast$(`E-mail ${emailLimpo} vinculado como ${nomeCargo}!`);
+      setNovoEmailUsuario("");
+      setNovasTurmasUsuario([]);
+    } catch (err: any) {
+      console.error("Erro ao vincular e-mail de usuário:", err);
+      toast$("Erro ao salvar e-mail de usuário.", "erro");
+    } finally {
+      setSalvandoUsuario(false);
+    }
+  };
+
+  const canEditAtv = (atv: any, turmaId?: string) => {
+    if (!user || guestMode) return true; // full access in guest/offline mode
+    if (userRole === "admin" || userRole === "coordenador") return true;
+    if (turmaId && (!userTurmas || !userTurmas.includes(turmaId))) return false;
+    return !atv.criadoPorEmail || atv.criadoPorEmail === user.email || atv.criadoPorEmail === "Local";
+  };
 
   const isSyncingFromCloud = useRef(false);
   const activeUnsubscribers = useRef<any[]>([]);
@@ -557,6 +900,29 @@ export default function App() {
     }
     return TURMAS;
   });
+
+  // Lista de turmas visíveis/permitidas baseada no perfil e atribuição do usuário
+  const turmasVisiveis = useMemo(() => {
+    if (!user || guestMode || (!isDocenteRole(userRole) && (userRole === "admin" || userRole === "coordenador"))) {
+      return turmas;
+    }
+    if (!userTurmas || userTurmas.length === 0) {
+      return [];
+    }
+    return turmas.filter((t: any) => userTurmas.includes(t.id));
+  }, [turmas, user, guestMode, userRole, userTurmas]);
+
+  useEffect(() => {
+    if (user && !guestMode && isDocenteRole(userRole)) {
+      if (turmasVisiveis.length > 0) {
+        if (!turmaSel || !turmasVisiveis.some((t: any) => t.id === turmaSel.id)) {
+          setTurmaSel(turmasVisiveis[0]);
+        }
+      } else {
+        setTurmaSel(null);
+      }
+    }
+  }, [user, guestMode, userRole, turmasVisiveis]);
   const [atividadesPadrao, _setAtividadesPadrao] = useState(() => {
     const raw = isLocalMode() ? loadLocal("semanario_atividades_padrao", ATIVIDADES_PADRAO) : ATIVIDADES_PADRAO;
     const cleaned: any = {};
@@ -804,22 +1170,49 @@ export default function App() {
         
         isSyncingFromCloud.current = true;
         try {
-          // Subscribe to real-time User Profile updates
-          const unsubUser = onSnapshot(doc(db, "usuarios", currentUser.uid), (docSnap) => {
+          // Subscribe to real-time User Profile updates using email as document key
+          const userDocKey = currentUser.email ? currentUser.email.trim().toLowerCase() : currentUser.uid;
+          const unsubUser = onSnapshot(doc(db, "usuarios", userDocKey), async (docSnap) => {
             if (docSnap.exists()) {
-              setUserRole(docSnap.data().role || "auxiliar");
+              const data = docSnap.data();
+              setUserRole(data.role || "auxiliar");
+              setUserTurmas(Array.isArray(data.turmas) ? data.turmas : []);
             } else {
-              // Auto-create user profile document if missing
+              // Auto-create user profile document using email as ID if missing
               let r: "admin" | "coordenador" | "auxiliar" = "auxiliar";
+              let tArr: string[] = [];
               if (currentUser.email === "jfernandoveiga1967@gmail.com") {
                 r = "admin";
               }
-              setDoc(doc(db, "usuarios", currentUser.uid), {
+              try {
+                // Check if an old doc with UID key exists
+                const uidSnap = await getDoc(doc(db, "usuarios", currentUser.uid));
+                if (uidSnap.exists()) {
+                  if (uidSnap.data().role) r = uidSnap.data().role;
+                  if (Array.isArray(uidSnap.data().turmas)) tArr = uidSnap.data().turmas;
+                } else if (currentUser.email) {
+                  const q = query(collection(db, "usuarios"), where("email", "==", currentUser.email.trim().toLowerCase()));
+                  const preSnap = await getDocs(q);
+                  if (!preSnap.empty) {
+                    const preData = preSnap.docs[0].data();
+                    if (preData.role) r = preData.role;
+                    if (Array.isArray(preData.turmas)) tArr = preData.turmas;
+                  }
+                }
+              } catch (e) {
+                console.warn("Erro ao buscar pré-registro de e-mail:", e);
+              }
+
+              setDoc(doc(db, "usuarios", userDocKey), {
                 uid: currentUser.uid,
-                email: currentUser.email,
-                role: r
-              }).catch(err => console.error("Erro ao criar perfil de usuário:", err));
+                email: currentUser.email || "",
+                role: r,
+                turmas: tArr,
+                updatedAt: new Date().toISOString()
+              }, { merge: true }).catch(err => console.error("Erro ao criar perfil de usuário:", err));
+
               setUserRole(r);
+              setUserTurmas(tArr);
             }
           });
 
@@ -1015,6 +1408,7 @@ export default function App() {
     }
   }, [telaBiblioteca, user, guestMode]);
   const [processandoAI, setProcessandoAI] = useState(false);
+  const [revisandoIA, setRevisandoIA] = useState(false);
   const [errorAI, setErrorAI] = useState(false);
   const [errorMensagemAI, setErrorMensagemAI] = useState("");
   const [modalGerador, setModalGerador] = useState(false);
@@ -1082,7 +1476,8 @@ export default function App() {
 
   const navegarTurmaAnterior = () => {
     if (!turmaSel) return;
-    const lista = ordenarTurmas(turmas);
+    const lista = ordenarTurmas(turmasVisiveis);
+    if (lista.length === 0) return;
     const idx = lista.findIndex((t: any) => t.id === turmaSel.id);
     if (idx !== -1) {
       const prevIdx = (idx - 1 + lista.length) % lista.length;
@@ -1092,7 +1487,8 @@ export default function App() {
 
   const navegarTurmaProxima = () => {
     if (!turmaSel) return;
-    const lista = ordenarTurmas(turmas);
+    const lista = ordenarTurmas(turmasVisiveis);
+    if (lista.length === 0) return;
     const idx = lista.findIndex((t: any) => t.id === turmaSel.id);
     if (idx !== -1) {
       const nextIdx = (idx + 1) % lista.length;
@@ -1464,6 +1860,45 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     } finally {
       setProcessandoAI(false);
       console.groupEnd();
+    }
+  };
+
+  const aprimorarTextoComIA = async () => {
+    if (!editandoEstrutura) return;
+    setRevisandoIA(true);
+    try {
+      const payload = {
+        tema: editandoEstrutura.tema || "",
+        nome: editandoEstrutura.nome || "",
+        descricao: editandoEstrutura.descricao || "",
+        turmaNome: turmaSel?.label || ""
+      };
+
+      const res = await fetch("/api/improve-activity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Erro HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      setEditandoEstrutura((p: any) => ({
+        ...p,
+        tema: data.tema || p.tema,
+        nome: data.nome || p.nome,
+        descricao: data.descricao || p.descricao
+      }));
+
+      toast$("Texto da atividade revisado e aprimorado com sucesso pela IA!");
+    } catch (error: any) {
+      console.error("Erro no aprimoramento por IA:", error);
+      toast$(error.message || "Não foi possível revisar o texto com a IA no momento.", "erro");
+    } finally {
+      setRevisandoIA(false);
     }
   };
 
@@ -2305,6 +2740,10 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   };
 
   const salvar = () => {
+    if (user && !guestMode && userRole === "auxiliar" && turmaSel && !userTurmas.includes(turmaSel.id)) {
+      toast$("Você não tem permissão para preencher semanários desta turma.", "erro");
+      return;
+    }
     if (!formData.status) { toast$("Selecione o status.", "erro"); return; }
     if (formData.status === "nao_realizada" && !formData.justificativa?.trim()) { toast$("Justifique a não realização.", "erro"); return; }
     if (formData.status === "substituida"   && !formData.novaProposta?.trim())  { toast$("Descreva a nova proposta.", "erro"); return; }
@@ -2319,6 +2758,10 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   };
 
   const handleMidia = async (e: any) => {
+    if (user && !guestMode && userRole === "auxiliar" && turmaSel && !userTurmas.includes(turmaSel.id)) {
+      toast$("Você não tem permissão para adicionar mídias nesta turma.", "erro");
+      return;
+    }
     const k = chave(turmaSel.id, atividadeSel.id);
     const novas: any[] = [];
     for (const f of Array.from(e.target.files) as File[]) {
@@ -4690,11 +5133,13 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                         <button
                           key={r}
                           onClick={() => {
-                            setDoc(doc(db, "usuarios", user.uid), {
+                            const docKey = user.email ? user.email.trim().toLowerCase() : user.uid;
+                            setDoc(doc(db, "usuarios", docKey), {
                               uid: user.uid,
                               email: user.email,
-                              role: r
-                            })
+                              role: r,
+                              updatedAt: new Date().toISOString()
+                            }, { merge: true })
                             .then(() => toast$(`Perfil atualizado para ${r === "admin" ? "Administrador" : r === "coordenador" ? "Coordenador" : "Auxiliar"}!`))
                             .catch((err) => {
                               console.error(err);
@@ -4773,13 +5218,21 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
             <div className="p-4 space-y-6">
               <div className="px-1 space-y-4">
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 px-1">
+                <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 px-1">
                   <button onClick={() => setTela("relatorio")} className="bg-white border border-slate-200 text-slate-700 px-3 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-50 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer">
                     <BarChart3 className="w-4 h-4 text-blue-500" /> Relatório
                   </button>
                   <button onClick={() => setTelaBiblioteca(true)} className="bg-indigo-50 border border-indigo-100 text-indigo-700 px-3 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-100 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer">
                     <Library className="w-4 h-4 text-indigo-600" /> Biblioteca
                   </button>
+                  {userRole === "admin" && (
+                    <button 
+                      onClick={() => setTela("usuarios")} 
+                      className="bg-amber-50 border border-amber-200 text-amber-800 px-3 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:bg-amber-100 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                    >
+                      <UserCog className="w-4 h-4 text-amber-600" /> Usuários
+                    </button>
+                  )}
                   <button onClick={() => setModalTurma(true)} className="bg-emerald-50 border border-emerald-100 text-emerald-700 px-3 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-emerald-100 flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer">
                     <span className="w-5 h-5 bg-emerald-600 text-white rounded-md flex items-center justify-center shadow-sm">
                       <Plus className="w-3.5 h-3.5 stroke-[3.5]" />
@@ -4812,15 +5265,29 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                   <h2 className="text-xl font-black text-slate-800">Turmas</h2>
                   <button
                     id="btn-baixar-todas-turmas"
-                    onClick={() => baixarAtividades(ordenarTurmas(turmas))}
+                    onClick={() => baixarAtividades(ordenarTurmas(turmasVisiveis))}
                     className="bg-red-600 hover:bg-red-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-md hover:shadow-lg flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                   >
-                    <Download className="w-4 h-4" /> Baixar Todas as Turmas
+                    <Download className="w-4 h-4" /> Baixar Minhas Turmas
                   </button>
                 </div>
               </div>
 
               <div className="space-y-3">
+                {isDocenteRole(userRole) && turmasVisiveis.length === 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center space-y-3 shadow-sm">
+                    <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+                      <BookOpen className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-slate-800 text-sm">Nenhuma Turma Atribuída</h3>
+                      <p className="text-xs text-slate-600 max-w-md mx-auto mt-1 leading-relaxed">
+                        Sua conta de Auxiliar / Professor ainda não possui turmas vinculadas. Solicite a um Administrador ou Coordenador que vincule suas turmas no painel de gerenciamento de usuários.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {!turmas.some((t: any) => t.id === "mini-maternal-azul") && (
                   <motion.div 
                     initial={{ opacity: 0, y: -10 }}
@@ -4859,7 +5326,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                   </motion.div>
                 )}
 
-                {ordenarTurmas(turmas).map(t => {
+                {ordenarTurmas(turmasVisiveis).map(t => {
                   const items = ATIVIDADES[t.id] || [];
                   const { done, total, pct } = progTurma(t.id);
                   return (
@@ -5066,7 +5533,30 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                     className="fixed inset-0 z-[2000] bg-black/60 flex items-center justify-center p-6 backdrop-blur-sm"
                   >
                     <div className="bg-white rounded-2xl p-6 w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-                      <h4 className="text-lg font-bold text-slate-800">Editar Atividade</h4>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <h4 className="text-lg font-bold text-slate-800">Editar Atividade</h4>
+                        {(userRole === "admin" || user?.email === "jfernandoveiga1967@gmail.com") && (
+                          <button
+                            type="button"
+                            onClick={aprimorarTextoComIA}
+                            disabled={revisandoIA}
+                            className="flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs py-2 px-3 rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                            title="Revisar ortografia, gramática, clareza e enriquecer a proposta com inteligência artificial"
+                          >
+                            {revisandoIA ? (
+                              <>
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                <span>Revisando com IA...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Wand2 className="w-3.5 h-3.5" />
+                                <span>Revisar e Melhorar com IA</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
                       <div>
                         <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Tema da Semana</label>
                         <input 
@@ -5589,6 +6079,424 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                 })}
               </div>
             </div>
+          </motion.div>
+        )}
+
+        {tela === "usuarios" && userRole === "admin" && (
+          <motion.div 
+            key="usuarios"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="pb-12"
+          >
+            {/* Header / Banner Topo */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white p-6 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                <ShieldCheck className="w-36 h-36 text-amber-400" />
+              </div>
+
+              <div className="flex items-center justify-between mb-4">
+                <button 
+                  onClick={() => setTela("home")}
+                  className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 border border-white/10 cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Voltar ao Início
+                </button>
+                <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <Shield className="w-3 h-3" /> Área Restrita Adm
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-amber-500/20 border border-amber-400/30 rounded-2xl flex items-center justify-center text-amber-300 shadow-inner shrink-0">
+                  <UserCog className="w-6 h-6" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-black tracking-tight text-white">Gerenciamento de Usuários</h1>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Altere os cargos dos e-mails cadastrados e gerencie permissões no aplicativo em tempo real.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Conteúdo Principal */}
+            <div className="p-4 space-y-6">
+              {/* Card de Adicionar/Vincular E-mail */}
+              <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                  <UserPlus className="w-4 h-4 text-blue-600" />
+                  <span>Vincular / Definir Cargo por E-mail</span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Defina o cargo de qualquer usuário informando o seu e-mail de acesso. O cargo será aplicado imediatamente se o usuário já estiver cadastrado ou assim que ele se conectar.
+                </p>
+
+                <form onSubmit={adicionarOuAtualizarUsuarioPorEmail} className="space-y-3 pt-1">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1">
+                      <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                      <input 
+                        type="email"
+                        required
+                        value={novoEmailUsuario}
+                        onChange={(e) => setNovoEmailUsuario(e.target.value)}
+                        placeholder="exemplo@escola.com"
+                        className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+                      />
+                    </div>
+
+                    <select
+                      value={isDocenteRole(novoCargoUsuario) ? "auxiliar" : novoCargoUsuario}
+                      onChange={(e: any) => setNovoCargoUsuario(e.target.value)}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:outline-none focus:border-blue-500 cursor-pointer"
+                    >
+                      <option value="auxiliar">Auxiliar / Professor</option>
+                      <option value="coordenador">Coordenador</option>
+                      <option value="admin">Administrador</option>
+                    </select>
+
+                    <button
+                      type="submit"
+                      disabled={salvandoUsuario || !novoEmailUsuario.trim()}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                    >
+                      {salvandoUsuario ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                      <span>Salvar Usuário</span>
+                    </button>
+                  </div>
+
+                  {/* Seleção de Turmas na criação */}
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                    <div className="flex items-center justify-between flex-wrap gap-1">
+                      <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                        <BookOpen className="w-3.5 h-3.5 text-blue-600" />
+                        Turmas autorizadas para este usuário:
+                      </label>
+                      <div className="flex items-center gap-2 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setNovasTurmasUsuario(turmas.map(t => t.id))}
+                          className="text-blue-600 font-bold hover:underline cursor-pointer"
+                        >
+                          Selecionar Todas
+                        </button>
+                        <span className="text-slate-300">•</span>
+                        <button
+                          type="button"
+                          onClick={() => setNovasTurmasUsuario([])}
+                          className="text-slate-500 font-bold hover:underline cursor-pointer"
+                        >
+                          Desmarcar Todas
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1">
+                      {ordenarTurmas(turmas).map((t) => {
+                        const checked = novasTurmasUsuario.includes(t.id);
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => {
+                              setNovasTurmasUsuario(prev =>
+                                prev.includes(t.id) ? prev.filter(id => id !== t.id) : [...prev, t.id]
+                              );
+                            }}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 border transition-all text-left cursor-pointer ${
+                              checked
+                                ? "bg-blue-50 border-blue-300 text-blue-800 font-bold shadow-xs"
+                                : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                              checked ? "bg-blue-600 border-blue-600 text-white" : "border-slate-300 bg-white"
+                            }`}>
+                              {checked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                            </div>
+                            <span className="truncate">{t.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </form>
+              </div>
+
+              {/* Lista e Busca de Usuários */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between px-1 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-slate-600" />
+                    <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                      Usuários Mapeados ({usuariosFiltrados.length})
+                    </h2>
+                  </div>
+                  {listaUsuarios.some(u => u.legacyDocIds && u.legacyDocIds.length > 0) && (
+                    <button
+                      type="button"
+                      onClick={consolidarELimparDuplicatasGlobais}
+                      className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95 shrink-0"
+                      title="Remover permanentemente registros legados do Firestore mantendo apenas a chave de e-mail"
+                    >
+                      <span>Unificar e Limpar ({listaUsuarios.reduce((acc, u) => acc + (u.legacyDocIds?.length || 0), 0)} duplicatas)</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input 
+                    type="text"
+                    value={filtroUsuario}
+                    onChange={(e) => setFiltroUsuario(e.target.value)}
+                    placeholder="Buscar por e-mail, ID ou cargo..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 shadow-sm"
+                  />
+                  {filtroUsuario && (
+                    <button 
+                      onClick={() => setFiltroUsuario("")}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+
+                {/* Lista de Cards de Usuários */}
+                <div className="space-y-2.5 pt-1">
+                  {usuariosFiltrados.length === 0 ? (
+                    <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center space-y-2">
+                      <Users className="w-8 h-8 text-slate-300 mx-auto" />
+                      <p className="text-xs font-bold text-slate-500">Nenhum usuário encontrado</p>
+                      <p className="text-[11px] text-slate-400">Verifique os termos da busca ou adicione um novo e-mail acima.</p>
+                    </div>
+                  ) : (
+                    usuariosFiltrados.map((u: any) => {
+                      const isEu = user?.uid === u.id || user?.email?.toLowerCase() === (u.email || "").toLowerCase();
+                      const currentRole = u.role || "auxiliar";
+                      const temDuplicatas = u.legacyDocIds && u.legacyDocIds.length > 0;
+                      return (
+                        <div 
+                          key={u.id}
+                          className={`w-full overflow-hidden box-border p-4 rounded-2xl border transition-all bg-white shadow-sm flex flex-col gap-3 ${
+                            isEu ? "border-blue-300 ring-2 ring-blue-500/10 bg-blue-50/20" : "border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="flex flex-col gap-1 w-full min-w-0">
+                            <div className="flex items-center justify-between gap-2 flex-wrap w-full">
+                              <span className="font-bold text-xs text-slate-800 break-all min-w-0">{u.email || "E-mail não cadastrado"}</span>
+                              <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                                {temDuplicatas && (
+                                  <span 
+                                    className="bg-amber-100 text-amber-800 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-300"
+                                    title={`Informações unificadas de duplicatas: ${u.legacyDocIds.join(", ")}. Ao salvar qualquer alteração, o registro padronizado será mantido e as duplicatas serão removidas.`}
+                                  >
+                                    Unificado ({u.legacyDocIds.length} legada(s))
+                                  </span>
+                                )}
+                                {isEu ? (
+                                  <button
+                                    type="button"
+                                    disabled
+                                    className="bg-slate-100 text-slate-400 border border-slate-200 text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 opacity-60 cursor-not-allowed shrink-0"
+                                    title="Sua conta de Administrador logada está protegida e não pode ser excluída"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                    <span>Sua Conta (Protegida)</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setUsuarioParaExcluir(u)}
+                                    className="bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
+                                    title={`Excluir usuário ${u.email || u.id}`}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                    <span>Excluir Usuário</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] text-slate-400 flex-wrap w-full">
+                              <span className="truncate max-w-full">ID Chave: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono break-all">{u.id}</code></span>
+                              {u.uid && u.uid !== u.id && (
+                                <span className="truncate max-w-full">• UID: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono break-all">{u.uid}</code></span>
+                              )}
+                              {u.updatedAt && (
+                                <span className="shrink-0">• Atualizado: {new Date(u.updatedAt).toLocaleDateString("pt-BR")}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Seletor de Cargo em Grid 3 colunas 100% contido */}
+                          <div className="w-full pt-2.5 border-t border-slate-100 box-border">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                              Cargo no Aplicativo:
+                            </label>
+                            <div className="grid grid-cols-3 gap-2 w-full box-border">
+                              {[
+                                { key: "auxiliar", label: "Auxiliar / Professor" },
+                                { key: "coordenador", label: "Coordenador" },
+                                { key: "admin", label: "Admin" }
+                              ].map((roleOpt) => {
+                                const isSelected = roleOpt.key === "auxiliar" ? isDocenteRole(currentRole) : currentRole === roleOpt.key;
+                                return (
+                                  <button
+                                    key={roleOpt.key}
+                                    onClick={() => alterarCargoUsuario(u.id, u.email || "", roleOpt.key as any, u.legacyDocIds)}
+                                    className={`w-full px-2 py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1 active:scale-95 cursor-pointer min-w-0 box-border ${
+                                      isSelected
+                                        ? roleOpt.key === "admin"
+                                          ? "bg-red-600 text-white ring-2 ring-red-600/30 font-black"
+                                          : roleOpt.key === "coordenador"
+                                            ? "bg-teal-600 text-white ring-2 ring-teal-600/30 font-black"
+                                            : "bg-slate-700 text-white ring-2 ring-slate-700/30 font-black"
+                                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 border border-slate-200"
+                                    }`}
+                                  >
+                                    {roleOpt.key === "admin" && <Shield className="w-3.5 h-3.5 shrink-0" />}
+                                    <span className="truncate">{roleOpt.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Seção de Turmas Atribuídas no Card do Usuário */}
+                          <div className="w-full pt-2.5 border-t border-slate-100 box-border space-y-2">
+                            <div className="flex items-center justify-between flex-wrap gap-1">
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                Turmas Atribuídas ({(u.turmas || []).length} de {turmas.length}):
+                              </label>
+                              <div className="flex items-center gap-2 text-[10px]">
+                                <button
+                                  type="button"
+                                  onClick={() => selecionarTodasTurmasUsuario(u.id, u.email || "", turmas.map(t => t.id), u.legacyDocIds)}
+                                  className="text-blue-600 font-bold hover:underline cursor-pointer"
+                                >
+                                  Todas
+                                </button>
+                                <span className="text-slate-300">•</span>
+                                <button
+                                  type="button"
+                                  onClick={() => desmarcarTodasTurmasUsuario(u.id, u.email || "", u.legacyDocIds)}
+                                  className="text-rose-600 font-bold hover:underline cursor-pointer"
+                                >
+                                  Nenhuma
+                                </button>
+                              </div>
+                            </div>
+
+                            {isDocenteRole(currentRole) && (!u.turmas || u.turmas.length === 0) && (
+                              <p className="text-[10px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 font-medium">
+                                ⚠️ Nenhuma turma vinculada. Como Auxiliar / Professor, este usuário não verá nenhuma turma no aplicativo.
+                              </p>
+                            )}
+
+                            {!isDocenteRole(currentRole) && (
+                              <p className="text-[10px] text-teal-700 bg-teal-50 p-2 rounded-lg border border-teal-200 font-medium">
+                                ℹ️ Como {currentRole === "admin" ? "Administrador" : "Coordenador"}, este usuário possui permissão total em todas as turmas. As turmas marcadas abaixo serão aplicadas caso o cargo seja alterado para Auxiliar / Professor.
+                              </p>
+                            )}
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 w-full box-border pt-1">
+                              {ordenarTurmas(turmas).map((t) => {
+                                const turmasDoUser = Array.isArray(u.turmas) ? u.turmas : [];
+                                const isChecked = turmasDoUser.includes(t.id);
+                                return (
+                                  <button
+                                    key={t.id}
+                                    type="button"
+                                    onClick={() => alternarTurmaUsuario(u.id, u.email || "", t.id, turmasDoUser, u.legacyDocIds)}
+                                    className={`w-full px-2 py-1.5 rounded-xl text-[11px] font-medium transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer min-w-0 box-border text-left ${
+                                      isChecked
+                                        ? "bg-blue-50/80 border border-blue-300 text-blue-900 font-bold"
+                                        : "bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                                    }`}
+                                  >
+                                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                                      isChecked ? "bg-blue-600 border-blue-600 text-white" : "border-slate-300 bg-white"
+                                    }`}>
+                                      {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                                    </div>
+                                    <span className="truncate">{t.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal de Confirmação de Exclusão de Usuário */}
+            <AnimatePresence>
+              {usuarioParaExcluir && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 space-y-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center shrink-0 shadow-inner">
+                        <Trash2 className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-slate-800 text-base">Excluir Usuário</h3>
+                        <p className="text-xs text-slate-500 font-medium">Confirmação de segurança de acesso</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-rose-50/80 border border-rose-200 rounded-2xl p-4 space-y-2">
+                      <p className="text-xs text-rose-900 leading-relaxed font-medium">
+                        Tem certeza que deseja excluir o usuário <strong className="font-black break-all">{usuarioParaExcluir.email || usuarioParaExcluir.id}</strong>?
+                      </p>
+                      <p className="text-[11px] text-rose-700/90 leading-snug">
+                        Esta ação removerá os acessos do usuário e excluirá o registro correspondente no Firestore. Esta ação não poderá ser desfeita.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-2">
+                      <button
+                        type="button"
+                        disabled={excluindoUsuario}
+                        onClick={() => setUsuarioParaExcluir(null)}
+                        className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={excluindoUsuario}
+                        onClick={confirmarExclusaoUsuario}
+                        className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer disabled:opacity-50"
+                      >
+                        {excluindoUsuario ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Excluindo...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Excluir Usuário</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
