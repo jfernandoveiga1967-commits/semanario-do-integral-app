@@ -1759,7 +1759,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     }
 
     setProcessandoAI(true);
-    toast$("Lendo PDF com IA...", "info");
+    toast$("Lendo, revisando e distribuindo o PDF com IA...", "info");
 
     try {
       const reader = new FileReader();
@@ -1850,7 +1850,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
             };
           });
         });
-        toast$("Conteúdo do PDF distribuído com sucesso!");
+        toast$("Conteúdo do PDF revisado pedagogicamente e distribuído com sucesso!");
       }
     } catch (error) {
       console.error(error);

@@ -77,7 +77,7 @@ async function startServer() {
     res.sendFile(path.join(process.cwd(), 'public', 'icon.svg'));
   });
 
-  // API para importar PDF
+  // API para importar PDF com Revisão Pedagógica + Distribuição Automática
   app.post("/api/import-pdf", async (req, res) => {
     try {
       const { base64Data, turmasContext } = req.body;
@@ -92,23 +92,59 @@ async function startServer() {
             },
           },
           {
-            text: `Você é um assistente pedagógico especializado em organizar planejamentos escolares.
-            Leia este PDF que contém o Semanário Integral e extraia as atividades de cada turma.
-            
-            As turmas disponíveis no sistema e seus IDs são:
-            ${turmasContext}
-            
-            Retorne um JSON seguindo exatamente esta estrutura:
-            Um objeto onde as chaves são os IDs das turmas (ex: "mini-maternal-azul") e os valores são arrays de objetos de atividades.
-            Cada objeto de atividade deve ter:
-            - id: uma string única (gerada por você)
-            - nome: Título da atividade no formato "Categoria: \n Título Específico". Por exemplo: "Devocional: \n O Amor de Deus", "Artes: \n Pintura com Dedos" ou "Psicomotricidade: \n Circuito Motor". Nunca utilize a palavra "CATEGORIA:" como prefixo fixo; use o nome real da categoria.
-            - descricao: descrição detalhada da proposta, dinâmica e objetivos.
-            
-            Importante: 
-            1. Mantenha o conteúdo integral e fiel ao PDF.
-            2. Se uma turma do PDF não estiver na lista acima, tente mapear para a mais próxima ou ignore se for totalmente diferente.
-            3. Não adicione nenhum texto explicativo fora do JSON.`,
+            text: `Você é um Coordenador Pedagógico e Especialista em Curadoria Educacional de Ensino Integral da Escola Crescer.
+Sua missão é realizar o MAPEAMENTO, LEITURA, REVISÃO PEDAGÓGICA E ADEQUAÇÃO COMPLETA dos planos de aula contidos neste PDF do Semanário Integral antes de sua distribuição no aplicativo.
+
+As turmas ativas e disponíveis no sistema para distribuição (com seus respectivos IDs) são:
+${turmasContext}
+
+FLUXO OBRIGATÓRIO DE PROCESSAMENTO, CURADORIA E DISTRIBUIÇÃO:
+
+1. MAPEAMENTO E LEITURA DO PDF:
+   - Identifique no PDF os blocos de texto correspondentes a cada Turma e a cada Atividade/Componente Curricular (ex: Artes, Psicomotricidade, Devocional, Projetos, Musicalização, Recreação, Culinária, Jogos, Robótica, etc.).
+   - Mapeie cada turma encontrada no PDF para o ID exato da lista de turmas acima (ex: "mini-maternal-azul", "1ano-azul", etc.).
+
+2. PROCESSAMENTO, REVISÃO E CORREÇÃO DE TEXTO (ANTES DE SALVAR):
+   - Corrija rigorosamente todos os erros ortográficos, gramaticais, de digitação e de pontuação do PDF (acentos faltantes, quebras de linha indevidas, palavras cortadas ou falhas de leitura).
+   - Reescreva e adeqúe o texto para uma linguagem estritamente profissional, clara, afetuosa e perfeitamente alinhada às diretrizes pedagógicas da Educação Infantil e Ensino Fundamental.
+   - NUNCA inclua palavras ou jargões técnicos de TI/programação (como "null", "undefined", "string", "JSON", "array").
+
+3. COMPLEMENTAÇÃO E ESTRUTURAÇÃO PEDAGÓGICA (ENRIQUECER SE SUCINTO OU VAGO):
+   - Caso o texto vindo do PDF esteja muito vago, sucinto, incompleto ou apenas em tópicos resumidos, ENRIQUEÇA o plano da atividade com objetivos pedagógicos e metodológicos claros, práticos e adequados à faixa etária da turma.
+   - Organize obrigatoriamente a 'descricao' da atividade seguindo a estrutura padrão que o sistema já utiliza ao gerar atividades automaticamente:
+
+   A) Para Atividades Gerais (Artes, Psicomotricidade, Musicalização, Projetos, Recreação, Culinária, Robótica, etc.):
+      Proposta:
+      [Objetivo pedagógico claro focado no desenvolvimento cognitivo, motor ou social da criança]
+
+      Dinâmica:
+      [Passo a passo lúdico, prático e detalhado de como a atividade será conduzida]
+
+      Materiais:
+      • [Lista de itens/materiais necessários]
+
+      Importante:
+      [Orientações de segurança, acolhimento e dicas práticas para a monitora/professor]
+
+   B) Para DEVOCIONAIS (Devocional / Ensino Religioso):
+      Proposta:
+      [Objetivo do devocional focado em valores cristãos, respeito, empatia, gratidão e amor ao próximo]
+
+      Versículo:
+      [Versículo bíblico curto, simples e apropriado para a idade]
+
+      Atividades:
+      [Roda de conversa lúdica, dinâmica de escuta, reflexão e oração breve com as crianças]
+
+      Importante:
+      [Orientações de acolhimento e escuta afetiva para a condução do momento]
+
+4. PADRONIZAÇÃO DO CAMPO "NOME":
+   - O campo "nome" deve ser formatado como "NomeDaCategoria: \n Título Específico Lúdico".
+     Exemplos: "Artes: \n Mosaico de Folhas Secas", "Devocional: \n O Cuidado de Deus", "Psicomotricidade: \n Circuito do Equilíbrio".
+   - O título deve estar em formato normal de sentença (primeira letra maiúscula), NUNCA em CAIXA ALTA total.
+
+Retorne obrigatoriamente um JSON estrito com a propriedade "atividades", onde as chaves são os IDs das turmas e os valores são arrays de objetos de atividades com id, nome e descricao.`,
           },
         ],
         config: {
@@ -139,7 +175,7 @@ async function startServer() {
 
       res.json(JSON.parse(response.text || "{}"));
     } catch (error: any) {
-      console.error("Erro na importação PDF:", error);
+      console.error("Erro na importação PDF com IA:", error);
       res.status(500).json({ error: error.message });
     }
   });
