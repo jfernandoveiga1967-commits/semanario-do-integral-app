@@ -23,6 +23,8 @@ import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { 
   ChevronLeft, 
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Home,
   Save, 
   Plus, 
@@ -554,6 +556,7 @@ export default function App() {
   const [salvandoUsuario, setSalvandoUsuario] = useState(false);
   const [usuarioParaExcluir, setUsuarioParaExcluir] = useState<any | null>(null);
   const [excluindoUsuario, setExcluindoUsuario] = useState(false);
+  const [usuarioExpandidoId, setUsuarioExpandidoId] = useState<string | null>(null);
 
   // Inscrição em tempo real na coleção "usuarios" para administradores com consolidação por e-mail
   useEffect(() => {
@@ -6651,220 +6654,285 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                       const isEu = user?.uid === u.id || user?.email?.toLowerCase() === (u.email || "").toLowerCase();
                       const currentRole = u.role || "auxiliar";
                       const temDuplicatas = u.legacyDocIds && u.legacyDocIds.length > 0;
+                      const isExpanded = usuarioExpandidoId === u.id;
+                      const numTurmas = Array.isArray(u.turmas) ? u.turmas.length : 0;
+                      const numCategorias = Array.isArray(u.categorias) ? u.categorias.length : 0;
+
+                      const roleLabel = isDocenteRole(currentRole) 
+                        ? "Auxiliar / Professor" 
+                        : currentRole === "coordenador" 
+                          ? "Coordenador" 
+                          : "Administrador";
+
+                      const roleBadgeStyle = currentRole === "admin"
+                        ? "bg-red-100 text-red-800 border-red-300"
+                        : currentRole === "coordenador"
+                          ? "bg-teal-100 text-teal-800 border-teal-300"
+                          : "bg-slate-100 text-slate-700 border-slate-300";
+
                       return (
                         <div 
                           key={u.id}
-                          className={`w-full overflow-hidden box-border p-4 rounded-2xl border transition-all bg-white shadow-sm flex flex-col gap-3 ${
-                            isEu ? "border-blue-300 ring-2 ring-blue-500/10 bg-blue-50/20" : "border-slate-200 hover:border-slate-300"
+                          className={`w-full overflow-hidden box-border rounded-2xl border transition-all bg-white shadow-xs flex flex-col ${
+                            isEu 
+                              ? "border-blue-300 ring-2 ring-blue-500/10 bg-blue-50/10" 
+                              : isExpanded 
+                                ? "border-blue-400 ring-2 ring-blue-500/10 shadow-md" 
+                                : "border-slate-200 hover:border-slate-300"
                           }`}
                         >
-                          <div className="flex flex-col gap-1 w-full min-w-0">
-                            <div className="flex items-center justify-between gap-2 flex-wrap w-full">
-                              <span className="font-bold text-xs text-slate-800 break-all min-w-0">{u.email || "E-mail não cadastrado"}</span>
-                              <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-                                {temDuplicatas && (
-                                  <span 
-                                    className="bg-amber-100 text-amber-800 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-300"
-                                    title={`Informações unificadas de duplicatas: ${u.legacyDocIds.join(", ")}. Ao salvar qualquer alteração, o registro padronizado será mantido e as duplicatas serão removidas.`}
-                                  >
-                                    Unificado ({u.legacyDocIds.length} legada(s))
-                                  </span>
-                                )}
-                                {isEu ? (
-                                  <button
-                                    type="button"
-                                    disabled
-                                    className="bg-slate-100 text-slate-400 border border-slate-200 text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 opacity-60 cursor-not-allowed shrink-0"
-                                    title="Sua conta de Administrador logada está protegida e não pode ser excluída"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                    <span>Sua Conta (Protegida)</span>
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => setUsuarioParaExcluir(u)}
-                                    className="bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
-                                    title={`Excluir usuário ${u.email || u.id}`}
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                    <span>Excluir Usuário</span>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 text-[10px] text-slate-400 flex-wrap w-full">
-                              <span className="truncate max-w-full">ID Chave: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono break-all">{u.id}</code></span>
-                              {u.uid && u.uid !== u.id && (
-                                <span className="truncate max-w-full">• UID: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono break-all">{u.uid}</code></span>
-                              )}
-                              {u.updatedAt && (
-                                <span className="shrink-0">• Atualizado: {new Date(u.updatedAt).toLocaleDateString("pt-BR")}</span>
+                          {/* Cabeçalho do Card (Sanfona / Clicável) */}
+                          <div
+                            onClick={() => setUsuarioExpandidoId(prev => prev === u.id ? null : u.id)}
+                            className="w-full p-3.5 sm:p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50/80 transition-colors select-none"
+                          >
+                            {/* Resumo em linha limpa: E-mail, Cargo, Turmas, Categorias */}
+                            <div className="flex items-center gap-2 flex-wrap min-w-0 flex-1">
+                              <span className="font-bold text-xs sm:text-sm text-slate-800 break-all">{u.email || "E-mail não cadastrado"}</span>
+
+                              {/* Cargo Atual */}
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border shrink-0 ${roleBadgeStyle}`}>
+                                {roleLabel}
+                              </span>
+
+                              {/* Nº de Turmas */}
+                              <span className="text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/80 flex items-center gap-1 shrink-0">
+                                <Users className="w-3 h-3 text-slate-400" />
+                                {numTurmas} {numTurmas === 1 ? "turma" : "turmas"}
+                              </span>
+
+                              {/* Nº de Categorias */}
+                              <span className="text-[10px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/80 flex items-center gap-1 shrink-0">
+                                <BookOpen className="w-3 h-3 text-slate-400" />
+                                {numCategorias} {numCategorias === 1 ? "categoria" : "categorias"}
+                              </span>
+
+                              {temDuplicatas && (
+                                <span 
+                                  className="bg-amber-100 text-amber-800 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-300 shrink-0"
+                                  title={`Informações unificadas de duplicatas: ${u.legacyDocIds.join(", ")}.`}
+                                >
+                                  Unificado ({u.legacyDocIds.length})
+                                </span>
                               )}
                             </div>
-                          </div>
 
-                          {/* Seletor de Cargo em Grid 3 colunas 100% contido */}
-                          <div className="w-full pt-2.5 border-t border-slate-100 box-border">
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                              Cargo no Aplicativo:
-                            </label>
-                            <div className="grid grid-cols-3 gap-2 w-full box-border">
-                              {[
-                                { key: "auxiliar", label: "Auxiliar / Professor" },
-                                { key: "coordenador", label: "Coordenador" },
-                                { key: "admin", label: "Admin" }
-                              ].map((roleOpt) => {
-                                const isSelected = roleOpt.key === "auxiliar" ? isDocenteRole(currentRole) : currentRole === roleOpt.key;
-                                return (
-                                  <button
-                                    key={roleOpt.key}
-                                    onClick={() => alterarCargoUsuario(u.id, u.email || "", roleOpt.key as any, u.legacyDocIds)}
-                                    className={`w-full px-2 py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1 active:scale-95 cursor-pointer min-w-0 box-border ${
-                                      isSelected
-                                        ? roleOpt.key === "admin"
-                                          ? "bg-red-600 text-white ring-2 ring-red-600/30 font-black"
-                                          : roleOpt.key === "coordenador"
-                                            ? "bg-teal-600 text-white ring-2 ring-teal-600/30 font-black"
-                                            : "bg-slate-700 text-white ring-2 ring-slate-700/30 font-black"
-                                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 border border-slate-200"
-                                    }`}
-                                  >
-                                    {roleOpt.key === "admin" && <Shield className="w-3.5 h-3.5 shrink-0" />}
-                                    <span className="truncate">{roleOpt.label}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Seção de Turmas Atribuídas no Card do Usuário */}
-                          <div className="w-full pt-2.5 border-t border-slate-100 box-border space-y-2">
-                            <div className="flex items-center justify-between flex-wrap gap-1">
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                Turmas Atribuídas ({(u.turmas || []).length} de {turmas.length}):
-                              </label>
-                              <div className="flex items-center gap-2 text-[10px]">
+                            {/* Ações e Ícone Indicador de Expansão */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              {isEu ? (
                                 <button
                                   type="button"
-                                  onClick={() => selecionarTodasTurmasUsuario(u.id, u.email || "", turmas.map(t => t.id), u.legacyDocIds)}
-                                  className="text-blue-600 font-bold hover:underline cursor-pointer"
+                                  disabled
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="bg-slate-100 text-slate-400 border border-slate-200 text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 opacity-60 cursor-not-allowed shrink-0"
+                                  title="Sua conta de Administrador logada está protegida e não pode ser excluída"
                                 >
-                                  Todas
+                                  <Trash2 className="w-3 h-3" />
+                                  <span className="hidden sm:inline">Sua Conta</span>
                                 </button>
-                                <span className="text-slate-300">•</span>
+                              ) : (
                                 <button
                                   type="button"
-                                  onClick={() => desmarcarTodasTurmasUsuario(u.id, u.email || "", u.legacyDocIds)}
-                                  className="text-rose-600 font-bold hover:underline cursor-pointer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setUsuarioParaExcluir(u);
+                                  }}
+                                  className="bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0"
+                                  title={`Excluir usuário ${u.email || u.id}`}
                                 >
-                                  Nenhuma
+                                  <Trash2 className="w-3 h-3" />
+                                  <span className="hidden sm:inline">Excluir</span>
                                 </button>
+                              )}
+
+                              {/* Ícone Indicador de Expansão */}
+                              <div className={`p-1.5 rounded-lg border transition-all ${
+                                isExpanded 
+                                  ? "bg-blue-100 text-blue-700 border-blue-200" 
+                                  : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200 hover:text-slate-700"
+                              }`}>
+                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                               </div>
                             </div>
-
-                            {isDocenteRole(currentRole) && (!u.turmas || u.turmas.length === 0) && (
-                              <p className="text-[10px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 font-medium">
-                                ⚠️ Nenhuma turma vinculada. Como Auxiliar / Professor, este usuário não verá nenhuma turma no aplicativo.
-                              </p>
-                            )}
-
-                            {!isDocenteRole(currentRole) && (
-                              <p className="text-[10px] text-teal-700 bg-teal-50 p-2 rounded-lg border border-teal-200 font-medium">
-                                ℹ️ Como {currentRole === "admin" ? "Administrador" : "Coordenador"}, este usuário possui permissão total em todas as turmas. As turmas marcadas abaixo serão aplicadas caso o cargo seja alterado para Auxiliar / Professor.
-                              </p>
-                            )}
-
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 w-full box-border pt-1">
-                              {ordenarTurmas(turmas).map((t) => {
-                                const turmasDoUser = Array.isArray(u.turmas) ? u.turmas : [];
-                                const isChecked = turmasDoUser.includes(t.id);
-                                return (
-                                  <button
-                                    key={t.id}
-                                    type="button"
-                                    onClick={() => alternarTurmaUsuario(u.id, u.email || "", t.id, turmasDoUser, u.legacyDocIds)}
-                                    className={`w-full px-2 py-1.5 rounded-xl text-[11px] font-medium transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer min-w-0 box-border text-left ${
-                                      isChecked
-                                        ? "bg-blue-50/80 border border-blue-300 text-blue-900 font-bold"
-                                        : "bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                                    }`}
-                                  >
-                                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
-                                      isChecked ? "bg-blue-600 border-blue-600 text-white" : "border-slate-300 bg-white"
-                                    }`}>
-                                      {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                                    </div>
-                                    <span className="truncate">{t.label}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
                           </div>
 
-                          {/* Seção de Categorias / Componentes Curriculares no Card do Usuário */}
-                          <div className="w-full pt-2.5 border-t border-slate-100 box-border space-y-2">
-                            <div className="flex items-center justify-between flex-wrap gap-1">
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                Componentes Curriculares / Categorias ({(u.categorias || []).length} de {todasCategoriasDisponiveis.length}):
-                              </label>
-                              <div className="flex items-center gap-2 text-[10px]">
-                                <button
-                                  type="button"
-                                  onClick={() => selecionarTodasCategoriasUsuario(u.id, u.email || "", todasCategoriasDisponiveis, u.legacyDocIds)}
-                                  className="text-purple-600 font-bold hover:underline cursor-pointer"
-                                >
-                                  Todas
-                                </button>
-                                <span className="text-slate-300">•</span>
-                                <button
-                                  type="button"
-                                  onClick={() => desmarcarTodasCategoriasUsuario(u.id, u.email || "", u.legacyDocIds)}
-                                  className="text-rose-600 font-bold hover:underline cursor-pointer"
-                                >
-                                  Nenhuma
-                                </button>
+                          {/* Conteúdo Expandido (Configurações Completas) */}
+                          {isExpanded && (
+                            <div className="p-4 pt-3 border-t border-slate-200/80 bg-slate-50/50 space-y-3.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                              <div className="flex items-center gap-2 text-[10px] text-slate-400 flex-wrap w-full">
+                                <span className="truncate max-w-full">ID Chave: <code className="bg-white border border-slate-200 px-1.5 py-0.5 rounded font-mono text-slate-600 break-all">{u.id}</code></span>
+                                {u.uid && u.uid !== u.id && (
+                                  <span className="truncate max-w-full">• UID: <code className="bg-white border border-slate-200 px-1.5 py-0.5 rounded font-mono text-slate-600 break-all">{u.uid}</code></span>
+                                )}
+                                {u.updatedAt && (
+                                  <span className="shrink-0">• Atualizado: {new Date(u.updatedAt).toLocaleDateString("pt-BR")}</span>
+                                )}
+                              </div>
+
+                              {/* Seletor de Cargo em Grid 3 colunas 100% contido */}
+                              <div className="w-full pt-2.5 border-t border-slate-200/60 box-border">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                                  Cargo no Aplicativo:
+                                </label>
+                                <div className="grid grid-cols-3 gap-2 w-full box-border">
+                                  {[
+                                    { key: "auxiliar", label: "Auxiliar / Professor" },
+                                    { key: "coordenador", label: "Coordenador" },
+                                    { key: "admin", label: "Admin" }
+                                  ].map((roleOpt) => {
+                                    const isSelected = roleOpt.key === "auxiliar" ? isDocenteRole(currentRole) : currentRole === roleOpt.key;
+                                    return (
+                                      <button
+                                        key={roleOpt.key}
+                                        type="button"
+                                        onClick={() => alterarCargoUsuario(u.id, u.email || "", roleOpt.key as any, u.legacyDocIds)}
+                                        className={`w-full px-2 py-2 rounded-xl text-[11px] sm:text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1 active:scale-95 cursor-pointer min-w-0 box-border ${
+                                          isSelected
+                                            ? roleOpt.key === "admin"
+                                              ? "bg-red-600 text-white ring-2 ring-red-600/30 font-black"
+                                              : roleOpt.key === "coordenador"
+                                                ? "bg-teal-600 text-white ring-2 ring-teal-600/30 font-black"
+                                                : "bg-slate-700 text-white ring-2 ring-slate-700/30 font-black"
+                                            : "bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200"
+                                        }`}
+                                      >
+                                        {roleOpt.key === "admin" && <Shield className="w-3.5 h-3.5 shrink-0" />}
+                                        <span className="truncate">{roleOpt.label}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Seção de Turmas Atribuídas no Card do Usuário */}
+                              <div className="w-full pt-2.5 border-t border-slate-200/60 box-border space-y-2">
+                                <div className="flex items-center justify-between flex-wrap gap-1">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                    Turmas Atribuídas ({(u.turmas || []).length} de {turmas.length}):
+                                  </label>
+                                  <div className="flex items-center gap-2 text-[10px]">
+                                    <button
+                                      type="button"
+                                      onClick={() => selecionarTodasTurmasUsuario(u.id, u.email || "", turmas.map(t => t.id), u.legacyDocIds)}
+                                      className="text-blue-600 font-bold hover:underline cursor-pointer"
+                                    >
+                                      Todas
+                                    </button>
+                                    <span className="text-slate-300">•</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => desmarcarTodasTurmasUsuario(u.id, u.email || "", u.legacyDocIds)}
+                                      className="text-rose-600 font-bold hover:underline cursor-pointer"
+                                    >
+                                      Nenhuma
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {isDocenteRole(currentRole) && (!u.turmas || u.turmas.length === 0) && (
+                                  <p className="text-[10px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 font-medium">
+                                    ⚠️ Nenhuma turma vinculada. Como Auxiliar / Professor, este usuário não verá nenhuma turma no aplicativo.
+                                  </p>
+                                )}
+
+                                {!isDocenteRole(currentRole) && (
+                                  <p className="text-[10px] text-teal-700 bg-teal-50 p-2 rounded-lg border border-teal-200 font-medium">
+                                    ℹ️ Como {currentRole === "admin" ? "Administrador" : "Coordenador"}, este usuário possui permissão total em todas as turmas. As turmas marcadas abaixo serão aplicadas caso o cargo seja alterado para Auxiliar / Professor.
+                                  </p>
+                                )}
+
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 w-full box-border pt-1">
+                                  {ordenarTurmas(turmas).map((t) => {
+                                    const turmasDoUser = Array.isArray(u.turmas) ? u.turmas : [];
+                                    const isChecked = turmasDoUser.includes(t.id);
+                                    return (
+                                      <button
+                                        key={t.id}
+                                        type="button"
+                                        onClick={() => alternarTurmaUsuario(u.id, u.email || "", t.id, turmasDoUser, u.legacyDocIds)}
+                                        className={`w-full px-2 py-1.5 rounded-xl text-[11px] font-medium transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer min-w-0 box-border text-left ${
+                                          isChecked
+                                            ? "bg-blue-50/90 border border-blue-300 text-blue-900 font-bold"
+                                            : "bg-white border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                                        }`}
+                                      >
+                                        <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                                          isChecked ? "bg-blue-600 border-blue-600 text-white" : "border-slate-300 bg-white"
+                                        }`}>
+                                          {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                                        </div>
+                                        <span className="truncate">{t.label}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Seção de Categorias / Componentes Curriculares no Card do Usuário */}
+                              <div className="w-full pt-2.5 border-t border-slate-200/60 box-border space-y-2">
+                                <div className="flex items-center justify-between flex-wrap gap-1">
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                    Componentes Curriculares / Categorias ({(u.categorias || []).length} de {todasCategoriasDisponiveis.length}):
+                                  </label>
+                                  <div className="flex items-center gap-2 text-[10px]">
+                                    <button
+                                      type="button"
+                                      onClick={() => selecionarTodasCategoriasUsuario(u.id, u.email || "", todasCategoriasDisponiveis, u.legacyDocIds)}
+                                      className="text-purple-600 font-bold hover:underline cursor-pointer"
+                                    >
+                                      Todas
+                                    </button>
+                                    <span className="text-slate-300">•</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => desmarcarTodasCategoriasUsuario(u.id, u.email || "", u.legacyDocIds)}
+                                      className="text-rose-600 font-bold hover:underline cursor-pointer"
+                                    >
+                                      Nenhuma
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {isDocenteRole(currentRole) && (!u.categorias || u.categorias.length === 0) && (
+                                  <p className="text-[10px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 font-medium">
+                                    ⚠️ Nenhuma categoria vinculada. Como Auxiliar / Professor, este usuário não verá atividades nos semanários.
+                                  </p>
+                                )}
+
+                                {!isDocenteRole(currentRole) && (
+                                  <p className="text-[10px] text-teal-700 bg-teal-50 p-2 rounded-lg border border-teal-200 font-medium">
+                                    ℹ️ Como {currentRole === "admin" ? "Administrador" : "Coordenador"}, este usuário possui permissão total em todas as categorias.
+                                  </p>
+                                )}
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-1.5 w-full box-border pt-1 max-h-60 overflow-y-auto p-1.5 border border-slate-200 rounded-xl bg-white">
+                                  {todasCategoriasDisponiveis.map((cat) => {
+                                    const catsDoUser = Array.isArray(u.categorias) ? u.categorias : [];
+                                    const isChecked = catsDoUser.includes(cat);
+                                    return (
+                                      <button
+                                        key={cat}
+                                        type="button"
+                                        onClick={() => alternarCategoriaUsuario(u.id, u.email || "", cat, catsDoUser, u.legacyDocIds)}
+                                        className={`w-full min-w-0 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer box-border text-left min-h-[38px] ${
+                                          isChecked
+                                            ? "bg-purple-50/90 border border-purple-300 text-purple-950 font-semibold"
+                                            : "bg-slate-50/50 border border-slate-200 text-slate-700 hover:bg-slate-100"
+                                        }`}
+                                      >
+                                        <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 self-center ${
+                                          isChecked ? "bg-purple-600 border-purple-600 text-white" : "border-slate-300 bg-white"
+                                        }`}>
+                                          {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                                        </div>
+                                        <span className="min-w-0 text-[11px] font-medium leading-tight whitespace-normal text-wrap break-words [word-break:break-word] [overflow-wrap:anywhere] flex-1">{cat}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
                               </div>
                             </div>
-
-                            {isDocenteRole(currentRole) && (!u.categorias || u.categorias.length === 0) && (
-                              <p className="text-[10px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 font-medium">
-                                ⚠️ Nenhuma categoria vinculada. Como Auxiliar / Professor, este usuário não verá atividades nos semanários.
-                              </p>
-                            )}
-
-                            {!isDocenteRole(currentRole) && (
-                              <p className="text-[10px] text-teal-700 bg-teal-50 p-2 rounded-lg border border-teal-200 font-medium">
-                                ℹ️ Como {currentRole === "admin" ? "Administrador" : "Coordenador"}, este usuário possui permissão total em todas as categorias.
-                              </p>
-                            )}
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-1.5 w-full box-border pt-1 max-h-60 overflow-y-auto p-1.5 border border-slate-200 rounded-xl bg-slate-50/50">
-                              {todasCategoriasDisponiveis.map((cat) => {
-                                const catsDoUser = Array.isArray(u.categorias) ? u.categorias : [];
-                                const isChecked = catsDoUser.includes(cat);
-                                return (
-                                  <button
-                                    key={cat}
-                                    type="button"
-                                    onClick={() => alternarCategoriaUsuario(u.id, u.email || "", cat, catsDoUser, u.legacyDocIds)}
-                                    className={`w-full min-w-0 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer box-border text-left min-h-[38px] ${
-                                      isChecked
-                                        ? "bg-purple-50/90 border border-purple-300 text-purple-950 font-semibold"
-                                        : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
-                                    }`}
-                                  >
-                                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 self-center ${
-                                      isChecked ? "bg-purple-600 border-purple-600 text-white" : "border-slate-300 bg-white"
-                                    }`}>
-                                      {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                                    </div>
-                                    <span className="min-w-0 text-[11px] font-medium leading-tight whitespace-normal text-wrap break-words [word-break:break-word] [overflow-wrap:anywhere] flex-1">{cat}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
+                          )}
                         </div>
                       );
                     })
