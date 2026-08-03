@@ -5351,35 +5351,45 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                         {userRole === "admin" ? "Administrador" : userRole === "coordenador" ? "Coordenador" : "Auxiliar"}
                       </span>
                     </div>
-                    <div translate="no" className="notranslate flex items-center gap-1 shrink-0">
-                      <span className="text-[10px] text-blue-200 mr-1">Cargo:</span>
-                      {(["auxiliar", "coordenador", "admin"] as const).map((r) => (
-                        <button
-                          key={r}
-                          onClick={() => {
-                            const docKey = user.email ? user.email.trim().toLowerCase() : user.uid;
-                            setDoc(doc(db, "usuarios", docKey), {
-                              uid: user.uid,
-                              email: user.email,
-                              role: r,
-                              updatedAt: new Date().toISOString()
-                            }, { merge: true })
-                            .then(() => toast$(`Perfil atualizado para ${r === "admin" ? "Administrador" : r === "coordenador" ? "Coordenador" : "Auxiliar"}!`))
-                            .catch((err) => {
-                              console.error(err);
-                              toast$("Erro ao atualizar perfil no Firestore.", "erro");
-                            });
-                          }}
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${
-                            userRole === r 
-                              ? "bg-white text-blue-700 shadow-sm font-black" 
-                              : "bg-blue-800/40 text-blue-200 hover:bg-blue-800/70 hover:text-white"
-                          }`}
-                        >
-                          {r === "auxiliar" ? "Aux" : r === "coordenador" ? "Coord" : "Adm"}
-                        </button>
-                      ))}
-                    </div>
+
+                    {isDocenteRole(userRole) ? (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="text-[10px] text-blue-200">Cargo:</span>
+                        <span className="text-[10px] font-bold text-white bg-blue-800/40 px-2 py-0.5 rounded border border-blue-400/20">
+                          Auxiliar/Professor
+                        </span>
+                      </div>
+                    ) : (
+                      <div translate="no" className="notranslate flex items-center gap-1 shrink-0">
+                        <span className="text-[10px] text-blue-200 mr-1">Cargo:</span>
+                        {(["auxiliar", "coordenador", "admin"] as const).map((r) => (
+                          <button
+                            key={r}
+                            onClick={() => {
+                              const docKey = user.email ? user.email.trim().toLowerCase() : user.uid;
+                              setDoc(doc(db, "usuarios", docKey), {
+                                uid: user.uid,
+                                email: user.email,
+                                role: r,
+                                updatedAt: new Date().toISOString()
+                              }, { merge: true })
+                              .then(() => toast$(`Perfil atualizado para ${r === "admin" ? "Administrador" : r === "coordenador" ? "Coordenador" : "Auxiliar"}!`))
+                              .catch((err) => {
+                                console.error(err);
+                                toast$("Erro ao atualizar perfil no Firestore.", "erro");
+                              });
+                            }}
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${
+                              userRole === r 
+                                ? "bg-white text-blue-700 shadow-sm font-black" 
+                                : "bg-blue-800/40 text-blue-200 hover:bg-blue-800/70 hover:text-white"
+                            }`}
+                          >
+                            {r === "auxiliar" ? "Aux" : r === "coordenador" ? "Coord" : "Adm"}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -5412,22 +5422,24 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                     <Calendar className="w-4 h-4 text-white" />
                     <span>Data: {sem.periodo} - Semana {sem.numero}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={abrirModalEditarSemana}
-                      className="p-1.5 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
-                      title="Editar Semana"
-                    >
-                      <Pencil className="w-3.5 h-3.5 text-white" />
-                    </button>
-                    <button 
-                      onClick={() => { setSemParaExcluir(sem); setModalExcluirSem(true); }}
-                      className="p-1.5 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
-                      title="Excluir Semana"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-white" />
-                    </button>
-                  </div>
+                  {!isDocenteRole(userRole) && (
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={abrirModalEditarSemana}
+                        className="p-1.5 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
+                        title="Editar Semana"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-white" />
+                      </button>
+                      <button 
+                        onClick={() => { setSemParaExcluir(sem); setModalExcluirSem(true); }}
+                        className="p-1.5 bg-white/20 hover:bg-white/30 rounded-md transition-colors"
+                        title="Excluir Semana"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-white" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
