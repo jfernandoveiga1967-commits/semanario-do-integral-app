@@ -1284,10 +1284,25 @@ export default function App() {
         try {
           // Subscribe to real-time User Profile updates using email as document key
           const userDocKey = currentUser.email ? currentUser.email.trim().toLowerCase() : currentUser.uid;
+          const isSuperAdmin = currentUser.email ? currentUser.email.trim().toLowerCase() === "jfernandoveiga1967@gmail.com" : false;
+
           const unsubUser = onSnapshot(doc(db, "usuarios", userDocKey), async (docSnap) => {
             if (docSnap.exists()) {
               const data = docSnap.data();
-              setUserRole(data.role || "auxiliar");
+              let effectiveRole = data.role || "auxiliar";
+
+              // Redefinir estado padrão do admin principal para 'admin' se necessário
+              if (isSuperAdmin && (!data.role || data.role === "auxiliar")) {
+                effectiveRole = "admin";
+                setDoc(doc(db, "usuarios", userDocKey), {
+                  uid: currentUser.uid,
+                  email: currentUser.email || "",
+                  role: "admin",
+                  updatedAt: new Date().toISOString()
+                }, { merge: true }).catch(err => console.error("Erro ao restaurar admin:", err));
+              }
+
+              setUserRole(effectiveRole);
               setUserTurmas(Array.isArray(data.turmas) ? data.turmas : []);
               const catList = Array.isArray(data.categorias) ? data.categorias.map((c: string) => c.trim().toLowerCase() === "coral e canto" ? "Coral" : c) : [];
               setUserCategorias(catList);
@@ -5352,44 +5367,53 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                       </span>
                     </div>
 
-                    {isDocenteRole(userRole) ? (
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className="text-[10px] text-blue-200">Cargo:</span>
-                        <span className="text-[10px] font-bold text-white bg-blue-800/40 px-2 py-0.5 rounded border border-blue-400/20">
-                          Auxiliar/Professor
-                        </span>
-                      </div>
-                    ) : (
-                      <div translate="no" className="notranslate flex items-center gap-1 shrink-0">
-                        <span className="text-[10px] text-blue-200 mr-1">Cargo:</span>
-                        {(["auxiliar", "coordenador", "admin"] as const).map((r) => (
-                          <button
-                            key={r}
-                            onClick={() => {
-                              const docKey = user.email ? user.email.trim().toLowerCase() : user.uid;
-                              setDoc(doc(db, "usuarios", docKey), {
-                                uid: user.uid,
-                                email: user.email,
-                                role: r,
-                                updatedAt: new Date().toISOString()
-                              }, { merge: true })
-                              .then(() => toast$(`Perfil atualizado para ${r === "admin" ? "Administrador" : r === "coordenador" ? "Coordenador" : "Auxiliar"}!`))
-                              .catch((err) => {
-                                console.error(err);
-                                toast$("Erro ao atualizar perfil no Firestore.", "erro");
-                              });
-                            }}
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${
-                              userRole === r 
-                                ? "bg-white text-blue-700 shadow-sm font-black" 
-                                : "bg-blue-800/40 text-blue-200 hover:bg-blue-800/70 hover:text-white"
-                            }`}
-                          >
-                            {r === "auxiliar" ? "Aux" : r === "coordenador" ? "Coord" : "Adm"}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    {(() => {
+                      const isAdminPrincipal = (user?.email || "").trim().toLowerCase() === "jfernandoveiga1967@gmail.com";
+                      const canShowRoleSwitcher = userRole === "admin" || isAdminPrincipal;
+
+                      if (canShowRoleSwitcher) {
+                        return (
+                          <div translate="no" className="notranslate flex items-center gap-1 shrink-0">
+                            <span className="text-[10px] text-blue-200 mr-1">Cargo:</span>
+                            {(["auxiliar", "coordenador", "admin"] as const).map((r) => (
+                              <button
+                                key={r}
+                                onClick={() => {
+                                  const docKey = user.email ? user.email.trim().toLowerCase() : user.uid;
+                                  setDoc(doc(db, "usuarios", docKey), {
+                                    uid: user.uid,
+                                    email: user.email,
+                                    role: r,
+                                    updatedAt: new Date().toISOString()
+                                  }, { merge: true })
+                                  .then(() => toast$(`Perfil atualizado para ${r === "admin" ? "Administrador" : r === "coordenador" ? "Coordenador" : "Auxiliar"}!`))
+                                  .catch((err) => {
+                                    console.error(err);
+                                    toast$("Erro ao atualizar perfil no Firestore.", "erro");
+                                  });
+                                }}
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${
+                                  userRole === r 
+                                    ? "bg-white text-blue-700 shadow-sm font-black" 
+                                    : "bg-blue-800/40 text-blue-200 hover:bg-blue-800/70 hover:text-white"
+                                }`}
+                              >
+                                {r === "auxiliar" ? "Aux" : r === "coordenador" ? "Coord" : "Adm"}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-[10px] text-blue-200">Cargo:</span>
+                          <span className="text-[10px] font-bold text-white bg-blue-800/40 px-2 py-0.5 rounded border border-blue-400/20">
+                            Auxiliar/Professor
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               ) : (
