@@ -54,7 +54,8 @@ import {
   Mail,
   Shield,
   BookOpen,
-  Check
+  Check,
+  Filter
 } from "lucide-react";
 
 // ── Função de ícone removida (usuário pediu para limpar) ──────────────────
@@ -122,7 +123,7 @@ const ATIVIDADES_PADRAO: any = {
     { id: "1a2",  nome: "Balé:",                  descricao: "" },
     { id: "1a3",  nome: "Caixa de Brinquedos:",   descricao: "" },
     { id: "1a4",  nome: "Contação de História:",  descricao: "" },
-    { id: "1a5",  nome: "Coral e Canto:",         descricao: "" },
+    { id: "1a5",  nome: "Coral:",                 descricao: "" },
     { id: "1a6",  nome: "Culinária:",             descricao: "" },
     { id: "1a7",  nome: "Devocional:",            descricao: "" },
     { id: "1a8",  nome: "Flauta:",                descricao: "" },
@@ -305,7 +306,9 @@ function obterTituloPuro(nome: string): string {
 function obterCategoriaPura(nome: string): string {
   if (!nome) return "Atividade";
   const parts = nome.includes(":") ? nome.split(":") : [nome];
-  return parts[0].trim();
+  const cat = parts[0].trim();
+  if (cat.toLowerCase() === "coral e canto") return "Coral";
+  return cat;
 }
 
 function formatarAtividadeUnica(a: any, turmaId?: string): any {
@@ -341,6 +344,7 @@ function formatarAtividadeUnica(a: any, turmaId?: string): any {
     "robotica": "Robótica",
     "flauta": "Flauta",
     "coral": "Coral",
+    "coral e canto": "Coral",
     "natação": "Natação",
     "natacao": "Natação",
     "judô": "Judô",
@@ -530,6 +534,7 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<"admin" | "coordenador" | "auxiliar" | "teacher" | "professor">("auxiliar");
   const [userTurmas, setUserTurmas] = useState<string[]>([]);
+  const [userCategorias, setUserCategorias] = useState<string[]>([]);
 
   const [guestMode, setGuestMode] = useState(() => {
     try {
@@ -545,6 +550,7 @@ export default function App() {
   const [novoEmailUsuario, setNovoEmailUsuario] = useState("");
   const [novoCargoUsuario, setNovoCargoUsuario] = useState<"admin" | "coordenador" | "auxiliar" | "teacher" | "professor">("auxiliar");
   const [novasTurmasUsuario, setNovasTurmasUsuario] = useState<string[]>([]);
+  const [novasCategoriasUsuario, setNovasCategoriasUsuario] = useState<string[]>([]);
   const [salvandoUsuario, setSalvandoUsuario] = useState(false);
   const [usuarioParaExcluir, setUsuarioParaExcluir] = useState<any | null>(null);
   const [excluindoUsuario, setExcluindoUsuario] = useState(false);
@@ -559,6 +565,7 @@ export default function App() {
         uid: string;
         role: "admin" | "coordenador" | "auxiliar";
         turmas: string[];
+        categorias: string[];
         legacyDocIds: string[];
         updatedAt?: string;
         createdAt?: string;
@@ -572,6 +579,8 @@ export default function App() {
 
         const docRole = (data.role as string) || "auxiliar";
         const docTurmas = Array.isArray(data.turmas) ? data.turmas : [];
+        const docCategoriasRaw = Array.isArray(data.categorias) ? data.categorias : [];
+        const docCategorias = docCategoriasRaw.map((c: string) => c.trim().toLowerCase() === "coral e canto" ? "Coral" : c);
         const docUid = data.uid || (docId !== emailKey ? docId : "");
 
         if (!mapByEmail.has(emailKey)) {
@@ -581,6 +590,7 @@ export default function App() {
             uid: docUid,
             role: docRole as any,
             turmas: docTurmas,
+            categorias: docCategorias,
             legacyDocIds: docId !== emailKey ? [docId] : [],
             updatedAt: data.updatedAt || data.createdAt || "",
             createdAt: data.createdAt || ""
@@ -602,9 +612,12 @@ export default function App() {
             existing.role = docRole as any;
           }
 
-          // União de turmas
+          // União de turmas e categorias
           const turmasSet = new Set([...existing.turmas, ...docTurmas]);
           existing.turmas = Array.from(turmasSet);
+
+          const categoriasSet = new Set([...(existing.categorias || []), ...docCategorias]);
+          existing.categorias = Array.from(categoriasSet);
 
           if (data.updatedAt && (!existing.updatedAt || data.updatedAt > existing.updatedAt)) {
             existing.updatedAt = data.updatedAt;
@@ -653,7 +666,8 @@ export default function App() {
           await setDoc(doc(db, "usuarios", u.id), {
             email: u.email || u.id,
             role: u.role,
-            turmas: u.turmas,
+            turmas: u.turmas || [],
+            categorias: u.categorias || [],
             uid: u.uid || "",
             updatedAt: new Date().toISOString()
           }, { merge: true });
@@ -829,6 +843,95 @@ export default function App() {
     }
   };
 
+  const alternarCategoriaUsuario = async (
+    userIdOrDocId: string, 
+    userEmail: string, 
+    catName: string, 
+    categoriasAtuais: string[],
+    legacyDocIds?: string[]
+  ) => {
+    try {
+      const emailKey = userEmail && userEmail.trim() ? userEmail.trim().toLowerCase() : userIdOrDocId;
+      const temCat = categoriasAtuais.includes(catName);
+      const novaLista = temCat 
+        ? categoriasAtuais.filter(c => c !== catName) 
+        : [...categoriasAtuais, catName];
+
+      await setDoc(doc(db, "usuarios", emailKey), {
+        uid: userIdOrDocId !== emailKey ? userIdOrDocId : "",
+        email: userEmail ? userEmail.trim().toLowerCase() : emailKey,
+        categorias: novaLista,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      const idsToDelete = new Set<string>(legacyDocIds || []);
+      if (userIdOrDocId && userIdOrDocId !== emailKey) {
+        idsToDelete.add(userIdOrDocId);
+      }
+      await limparDuplicatasLegadas(Array.from(idsToDelete));
+
+      toast$("Categorias / Componentes Curriculares atualizados!");
+    } catch (err: any) {
+      console.error("Erro ao atualizar categorias do usuário:", err);
+      toast$("Erro ao atualizar categorias no Firestore.", "erro");
+    }
+  };
+
+  const selecionarTodasCategoriasUsuario = async (
+    userIdOrDocId: string, 
+    userEmail: string, 
+    todasCategorias: string[],
+    legacyDocIds?: string[]
+  ) => {
+    try {
+      const emailKey = userEmail && userEmail.trim() ? userEmail.trim().toLowerCase() : userIdOrDocId;
+      await setDoc(doc(db, "usuarios", emailKey), {
+        uid: userIdOrDocId !== emailKey ? userIdOrDocId : "",
+        email: userEmail ? userEmail.trim().toLowerCase() : emailKey,
+        categorias: todasCategorias,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      const idsToDelete = new Set<string>(legacyDocIds || []);
+      if (userIdOrDocId && userIdOrDocId !== emailKey) {
+        idsToDelete.add(userIdOrDocId);
+      }
+      await limparDuplicatasLegadas(Array.from(idsToDelete));
+
+      toast$("Todas as categorias foram vinculadas ao usuário!");
+    } catch (err: any) {
+      console.error("Erro ao vincular todas as categorias:", err);
+      toast$("Erro ao atualizar no Firestore.", "erro");
+    }
+  };
+
+  const desmarcarTodasCategoriasUsuario = async (
+    userIdOrDocId: string, 
+    userEmail: string,
+    legacyDocIds?: string[]
+  ) => {
+    try {
+      const emailKey = userEmail && userEmail.trim() ? userEmail.trim().toLowerCase() : userIdOrDocId;
+      await setDoc(doc(db, "usuarios", emailKey), {
+        uid: userIdOrDocId !== emailKey ? userIdOrDocId : "",
+        email: userEmail ? userEmail.trim().toLowerCase() : emailKey,
+        categorias: [],
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      const idsToDelete = new Set<string>(legacyDocIds || []);
+      if (userIdOrDocId && userIdOrDocId !== emailKey) {
+        idsToDelete.add(userIdOrDocId);
+      }
+      await limparDuplicatasLegadas(Array.from(idsToDelete));
+
+      toast$("Todas as categorias foram desvinculadas.");
+    } catch (err: any) {
+      console.error("Erro ao desmarcar categorias:", err);
+      toast$("Erro ao atualizar no Firestore.", "erro");
+    }
+  };
+
   const adicionarOuAtualizarUsuarioPorEmail = async (e: FormEvent) => {
     e.preventDefault();
     if (!novoEmailUsuario.trim()) return;
@@ -845,6 +948,7 @@ export default function App() {
         email: emailLimpo,
         role: novoCargoUsuario,
         turmas: novasTurmasUsuario,
+        categorias: novasCategoriasUsuario,
         updatedAt: new Date().toISOString()
       }, { merge: true });
 
@@ -855,6 +959,7 @@ export default function App() {
       toast$(`E-mail ${emailLimpo} vinculado como ${nomeCargo}!`);
       setNovoEmailUsuario("");
       setNovasTurmasUsuario([]);
+      setNovasCategoriasUsuario([]);
     } catch (err: any) {
       console.error("Erro ao vincular e-mail de usuário:", err);
       toast$("Erro ao salvar e-mail de usuário.", "erro");
@@ -866,7 +971,12 @@ export default function App() {
   const canEditAtv = (atv: any, turmaId?: string) => {
     if (!user || guestMode) return true; // full access in guest/offline mode
     if (userRole === "admin" || userRole === "coordenador") return true;
-    if (turmaId && (!userTurmas || !userTurmas.includes(turmaId))) return false;
+    if (turmaId && userTurmas && userTurmas.length > 0 && !userTurmas.includes(turmaId)) return false;
+    if (isDocenteRole(userRole) && Array.isArray(userCategorias)) {
+      if (userCategorias.length === 0) return false;
+      const cat = obterCategoriaPura(atv?.nome || "");
+      if (!userCategorias.includes(cat)) return false;
+    }
     return !atv.criadoPorEmail || atv.criadoPorEmail === user.email || atv.criadoPorEmail === "Local";
   };
 
@@ -1063,6 +1173,8 @@ export default function App() {
                 descricao: activity.descricao || "",
                 adiResponsavel: activity.adiResponsavel || "",
                 monitoras: activity.monitoras || "",
+                aiGenerated: Boolean(activity.aiGenerated),
+                aiGenerationCount: activity.aiGenerationCount || 0,
                 criadoPorEmail: (!guestMode && user?.email) ? (activity.criadoPorEmail && activity.criadoPorEmail !== "Local" ? activity.criadoPorEmail : user.email) : (activity.criadoPorEmail || "Local"),
                 atualizadoEm: new Date().toISOString()
               }).catch(e => console.error("Erro ao indexar atividade:", e));
@@ -1177,10 +1289,13 @@ export default function App() {
               const data = docSnap.data();
               setUserRole(data.role || "auxiliar");
               setUserTurmas(Array.isArray(data.turmas) ? data.turmas : []);
+              const catList = Array.isArray(data.categorias) ? data.categorias.map((c: string) => c.trim().toLowerCase() === "coral e canto" ? "Coral" : c) : [];
+              setUserCategorias(catList);
             } else {
               // Auto-create user profile document using email as ID if missing
               let r: "admin" | "coordenador" | "auxiliar" = "auxiliar";
               let tArr: string[] = [];
+              let cArr: string[] = [];
               if (currentUser.email === "jfernandoveiga1967@gmail.com") {
                 r = "admin";
               }
@@ -1190,6 +1305,7 @@ export default function App() {
                 if (uidSnap.exists()) {
                   if (uidSnap.data().role) r = uidSnap.data().role;
                   if (Array.isArray(uidSnap.data().turmas)) tArr = uidSnap.data().turmas;
+                  if (Array.isArray(uidSnap.data().categorias)) cArr = uidSnap.data().categorias.map((c: string) => c.trim().toLowerCase() === "coral e canto" ? "Coral" : c);
                 } else if (currentUser.email) {
                   const q = query(collection(db, "usuarios"), where("email", "==", currentUser.email.trim().toLowerCase()));
                   const preSnap = await getDocs(q);
@@ -1197,6 +1313,7 @@ export default function App() {
                     const preData = preSnap.docs[0].data();
                     if (preData.role) r = preData.role;
                     if (Array.isArray(preData.turmas)) tArr = preData.turmas;
+                    if (Array.isArray(preData.categorias)) cArr = preData.categorias.map((c: string) => c.trim().toLowerCase() === "coral e canto" ? "Coral" : c);
                   }
                 }
               } catch (e) {
@@ -1208,11 +1325,13 @@ export default function App() {
                 email: currentUser.email || "",
                 role: r,
                 turmas: tArr,
+                categorias: cArr,
                 updatedAt: new Date().toISOString()
               }, { merge: true }).catch(err => console.error("Erro ao criar perfil de usuário:", err));
 
               setUserRole(r);
               setUserTurmas(tArr);
+              setUserCategorias(cArr);
             }
           });
 
@@ -1389,6 +1508,17 @@ export default function App() {
     const criador = pesquisaCriador.toLowerCase().trim();
 
     return atividadesPesquisa.filter((a: any) => {
+      if (user && !guestMode && isDocenteRole(userRole)) {
+        if (userTurmas && userTurmas.length > 0 && a.turmaId && !userTurmas.includes(a.turmaId)) {
+          return false;
+        }
+        if (Array.isArray(userCategorias)) {
+          const atvCat = (a.categoria || obterCategoriaPura(a.nome || "")).trim();
+          if (!userCategorias.includes(atvCat)) {
+            return false;
+          }
+        }
+      }
       if (q) {
         const matchTitle = (a.titulo || "").toLowerCase().includes(q);
         const matchDesc = (a.descricao || "").toLowerCase().includes(q);
@@ -1400,7 +1530,7 @@ export default function App() {
       if (pesquisaCriador && !(a.criadoPorEmail || "").toLowerCase().includes(criador)) return false;
       return true;
     });
-  }, [atividadesPesquisa, pesquisaQuery, pesquisaCategoria, pesquisaTurma, pesquisaCriador]);
+  }, [atividadesPesquisa, pesquisaQuery, pesquisaCategoria, pesquisaTurma, pesquisaCriador, user, guestMode, userRole, userTurmas, userCategorias]);
 
   useEffect(() => {
     if (telaBiblioteca) {
@@ -1751,13 +1881,24 @@ export default function App() {
   };
 
   const gerarAtividadeAI = async (turma: any, atividade: any, retry = true) => {
+    const s = semanarios.find(x => x.id === (semAtualId || "")) || sem;
+    const semAtividades = s?.atividades?.[turma.id] || [];
+    const atvAtual = semAtividades.find((x: any) => x.id === atividade.id) || atividade;
+
+    const isAdminOrCoordenador = userRole === "admin" || userRole === "coordenador" || (userRole as string) === "coordinator";
+    const jaGeradoPorIA = Boolean(atvAtual.aiGenerated || (atvAtual.aiGenerationCount && atvAtual.aiGenerationCount > 0));
+
+    if (!isAdminOrCoordenador && jaGeradoPorIA) {
+      toast$("Sugestão de IA já gerada para esta categoria nesta semana.", "aviso");
+      return;
+    }
+
     setModalGerador(true);
     setGenContext({ turma, atividade });
     setGenResult("");
     setProcessandoAI(true);
     setErrorAI(false);
 
-    const s = semanarios.find(x => x.id === (semAtualId || "")) || sem;
     const startTime = Date.now();
     const turmaTema = s.temasTurmas?.[turma.id] !== undefined ? s.temasTurmas[turma.id] : (s.tema || "Geral / Não especificado");
     
@@ -1995,17 +2136,24 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       ? turmas.filter((t: any) => t.id === turmaId) 
       : turmas;
 
+    const isAdminOrCoordenador = userRole === "admin" || userRole === "coordenador" || (userRole as string) === "coordinator";
+
     for (const t of ordenarTurmas(turmasAlvo)) {
       const items = ATIVIDADES[t.id] || [];
       for (const a of items) {
+        const jaGerado = Boolean(a.aiGenerated || (a.aiGenerationCount && a.aiGenerationCount > 0));
+
         if (atividadeId) {
           if (a.id === atividadeId) {
-            pendentes.push({ turma: t, atividade: a });
+            if (isAdminOrCoordenador || !jaGerado) {
+              pendentes.push({ turma: t, atividade: a });
+            }
           }
         } else {
-          // No batch, are we only generating those with empty description?
           if (!a.descricao || !a.descricao.trim()) {
-            pendentes.push({ turma: t, atividade: a });
+            if (isAdminOrCoordenador || !jaGerado) {
+              pendentes.push({ turma: t, atividade: a });
+            }
           }
         }
       }
@@ -2091,7 +2239,9 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
               return formatarAtividadeUnica({
                 ...a,
                 nome: parsed.titulo,
-                descricao: parsed.descricao
+                descricao: parsed.descricao,
+                aiGenerated: true,
+                aiGenerationCount: (a.aiGenerationCount || 0) + 1
               }, item.turma.id);
             }
             return a;
@@ -2166,6 +2316,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
             ...a,
             nome: dadosNovos.nome,
             descricao: dadosNovos.descricao,
+            aiGenerated: true,
+            aiGenerationCount: (a.aiGenerationCount || 0) + 1,
             criadoPorEmail: (!guestMode && user?.email) ? user.email : "Local"
           };
         });
@@ -2720,6 +2872,71 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   const sem = semanarios.find(s => s.id === semAtualId) || semanarios[0];
   const activeSemId = sem?.id || semAtualId || "";
   const ATIVIDADES = sem?.atividades || {};
+
+  const todasCategoriasDisponiveis = useMemo(() => {
+    const base = new Set<string>([
+      "Contação de História",
+      "Balé",
+      "Devocional",
+      "Artes",
+      "Música",
+      "Psicomotricidade",
+      "Projetos",
+      "Culinária",
+      "Lego",
+      "Robótica",
+      "Informática",
+      "Flauta",
+      "Coral",
+      "Natação",
+      "Judô",
+      "Caixa de Brinquedos",
+      "Caixa de Jogos",
+      "Quadra B",
+      "Leitura de Gibi",
+      "Motoca",
+      "Lição de Casa"
+    ]);
+
+    if (ATIVIDADES) {
+      Object.values(ATIVIDADES).forEach((list: any) => {
+        if (Array.isArray(list)) {
+          list.forEach((a: any) => {
+            if (a?.nome) {
+              const cat = obterCategoriaPura(a.nome);
+              if (cat && cat.trim()) base.add(cat.trim());
+            }
+          });
+        }
+      });
+    }
+
+    if (atividadesPadrao) {
+      Object.values(atividadesPadrao).forEach((list: any) => {
+        if (Array.isArray(list)) {
+          list.forEach((a: any) => {
+            if (a?.nome) {
+              const cat = obterCategoriaPura(a.nome);
+              if (cat && cat.trim()) base.add(cat.trim());
+            }
+          });
+        }
+      });
+    }
+
+    // Excluir categorias obsoletas ou consolidadas
+    const obsoletas = [
+      "Coral e Canto", "CORAL E CANTO", "Coral e canto",
+      "Como atividade", "COMO ATIVIDADE", "Como Atividade", "como atividade",
+      "Educação Física", "EDUCAÇÃO FÍSICA", "Educacao Fisica", "EDUCAÇÃO FISICA", "educação física",
+      "Projeto Extra", "PROJETO EXTRA", "Projeto extra", "projeto extra",
+      "Atividades", "ATIVIDADES", "Atividade", "atividade", "atividades",
+      "Musicalização", "MUSICALIZAÇÃO", "Musicalizacao", "MUSICALIZACAO", "musicalização"
+    ];
+    obsoletas.forEach(obs => base.delete(obs));
+
+    return Array.from(base).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [ATIVIDADES, atividadesPadrao]);
 
   const chave = (tId: string, aId: string) => `${activeSemId}||${tId}||${aId}`;
   const getReg = (tId: string, aId: string) => registros[chave(tId, aId)] || null;
@@ -3864,7 +4081,14 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   const porStatus = regsDoSem.reduce((acc: any, k) => { const s = registros[k]?.status; if (s) acc[s] = (acc[s]||0)+1; return acc; }, {} as any);
 
   const progTurma = (tId: string) => {
-    const a = ATIVIDADES[tId] || [];
+    let a = ATIVIDADES[tId] || [];
+    if (user && !guestMode && isDocenteRole(userRole) && Array.isArray(userCategorias)) {
+      if (userCategorias.length > 0) {
+        a = a.filter((x: any) => userCategorias.includes(obterCategoriaPura(x.nome)));
+      } else {
+        a = [];
+      }
+    }
     const d = a.filter((x: any) => getReg(tId, x.id)).length;
     return { done: d, total: a.length, pct: a.length ? Math.round(d/a.length*100) : 0 };
   };
@@ -5610,7 +5834,13 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                 )}
               </AnimatePresence>
 
-              {[...(ATIVIDADES[turmaSel.id] || [])].sort((a: any, b: any) => a.nome.localeCompare(b.nome)).map((a: any) => {
+              {(() => {
+                const listBruta = ATIVIDADES[turmaSel.id] || [];
+                const listFiltrada = (user && !guestMode && isDocenteRole(userRole) && Array.isArray(userCategorias))
+                  ? listBruta.filter((a: any) => userCategorias.includes(obterCategoriaPura(a.nome || "")))
+                  : listBruta;
+                return [...listFiltrada].sort((a: any, b: any) => a.nome.localeCompare(b.nome));
+              })().map((a: any) => {
                 const reg = getReg(turmaSel.id, a.id);
                 const cfg = reg ? STATUS_CONFIG[reg.status] : STATUS_CONFIG.pendente;
                 return (
@@ -5654,20 +5884,49 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                         
                         {/* Botão Gerar Atividade */}
                         <div className="pt-2">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              gerarAtividadeAI(turmaSel, a);
-                            }}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black shadow-sm transition-all active:scale-95 ${
-                              a.descricao && a.descricao.trim()
-                                ? "bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200"
-                                : "bg-blue-600 hover:bg-blue-700 text-white"
-                            }`}
-                          >
-                            <Sparkles className={`w-3 h-3 ${a.descricao && a.descricao.trim() ? "text-slate-500 animate-none" : "animate-pulse"}`} />{" "}
-                            {a.descricao && a.descricao.trim() ? "Regerar Proposta" : "Criar Atividade"}
-                          </button>
+                          {(() => {
+                            const isAdminOrCoordenador = userRole === "admin" || userRole === "coordenador" || (userRole as string) === "coordinator";
+                            const jaGeradoPorIA = Boolean(a.aiGenerated || (a.aiGenerationCount && a.aiGenerationCount > 0));
+                            const bloqueadoParaAuxiliar = !isAdminOrCoordenador && jaGeradoPorIA;
+
+                            return (
+                              <div>
+                                <button 
+                                  disabled={bloqueadoParaAuxiliar}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (bloqueadoParaAuxiliar) return;
+                                    gerarAtividadeAI(turmaSel, a);
+                                  }}
+                                  title={
+                                    bloqueadoParaAuxiliar 
+                                      ? "Sugestão de IA já gerada para esta categoria nesta semana." 
+                                      : (a.descricao && a.descricao.trim() ? "Regerar Proposta com IA" : "Criar Atividade com IA")
+                                  }
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black shadow-sm transition-all ${
+                                    bloqueadoParaAuxiliar
+                                      ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-75"
+                                      : a.descricao && a.descricao.trim()
+                                        ? "bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 active:scale-95 cursor-pointer"
+                                        : "bg-blue-600 hover:bg-blue-700 text-white active:scale-95 cursor-pointer"
+                                  }`}
+                                >
+                                  <Sparkles className={`w-3 h-3 ${bloqueadoParaAuxiliar ? "text-slate-400" : (a.descricao && a.descricao.trim() ? "text-slate-500 animate-none" : "animate-pulse")}`} />{" "}
+                                  {bloqueadoParaAuxiliar 
+                                    ? "IA Já Utilizada" 
+                                    : (a.descricao && a.descricao.trim() ? "Regerar Proposta" : "Criar Atividade")
+                                  }
+                                </button>
+
+                                {bloqueadoParaAuxiliar && (
+                                  <p className="text-[10px] text-slate-500 font-medium mt-1.5 flex items-center gap-1 leading-snug">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                                    Sugestão de IA já gerada para esta categoria nesta semana.
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {reg?.status === "realizada" && reg.justificativa && (
@@ -5746,18 +6005,38 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
               })}
 
 
-              {(!ATIVIDADES[turmaSel.id] || ATIVIDADES[turmaSel.id].length === 0) && (
-                <div className="py-12 flex flex-col items-center text-slate-400 gap-2">
-                  <FileText className="w-10 h-10 opacity-20" />
-                  <p className="text-sm font-medium">Nenhuma atividade planejada.</p>
-                  <button 
-                    onClick={() => adicionarBase(turmaSel.id)}
-                    className="text-blue-500 font-bold text-xs"
-                  >
-                    + Criar primeira atividade
-                  </button>
-                </div>
-              )}
+              {(() => {
+                const listBruta = ATIVIDADES[turmaSel.id] || [];
+                const listFiltrada = (user && !guestMode && isDocenteRole(userRole) && Array.isArray(userCategorias))
+                  ? listBruta.filter((a: any) => userCategorias.includes(obterCategoriaPura(a.nome || "")))
+                  : listBruta;
+                if (listFiltrada.length === 0) {
+                  return (
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 text-center space-y-3 my-4 shadow-sm">
+                      <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center mx-auto border border-purple-100 shadow-inner">
+                        <Filter className="w-6 h-6" />
+                      </div>
+                      <h4 className="font-extrabold text-sm text-slate-800">Nenhuma atividade disponível</h4>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                        {user && !guestMode && isDocenteRole(userRole)
+                          ? userCategorias.length === 0
+                            ? "Sua conta de Auxiliar / Professor não possui Componentes Curriculares / Categorias atribuídos. Entre em contato com um Administrador para vincular suas categorias no Gerenciamento de Usuários."
+                            : `Não há atividades nesta turma pertencentes às suas categorias atribuídas (${userCategorias.join(", ")}).`
+                          : "Nenhuma atividade planejada para esta turma."}
+                      </p>
+                      {(!user || guestMode || !isDocenteRole(userRole)) && (
+                        <button 
+                          onClick={() => adicionarBase(turmaSel.id)}
+                          className="text-blue-600 hover:text-blue-700 font-extrabold text-xs inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Criar primeira atividade
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
           </motion.div>
         )}
@@ -6222,6 +6501,64 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                       })}
                     </div>
                   </div>
+
+                  {/* Seção de Categorias / Componentes Curriculares no Formulário de Novo Usuário */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <div className="flex items-center justify-between flex-wrap gap-1 mb-1.5">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        Categorias / Componentes Curriculares Vinculados ({novasCategoriasUsuario.length} de {todasCategoriasDisponiveis.length}):
+                      </label>
+                      <div className="flex items-center gap-2 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setNovasCategoriasUsuario([...todasCategoriasDisponiveis])}
+                          className="text-purple-600 font-bold hover:underline cursor-pointer"
+                        >
+                          Selecionar Todas
+                        </button>
+                        <span className="text-slate-300">•</span>
+                        <button
+                          type="button"
+                          onClick={() => setNovasCategoriasUsuario([])}
+                          className="text-slate-500 font-bold hover:underline cursor-pointer"
+                        >
+                          Desmarcar Todas
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mb-2">
+                      Filtro de visualização para Auxiliar / Professor. O usuário só visualizará e editará atividades destas categorias.
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-1.5 pt-1 max-h-60 overflow-y-auto p-1.5 border border-slate-200 rounded-xl bg-slate-50/50">
+                      {todasCategoriasDisponiveis.map((cat) => {
+                        const checked = novasCategoriasUsuario.includes(cat);
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => {
+                              setNovasCategoriasUsuario(prev =>
+                                prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+                              );
+                            }}
+                            className={`w-full min-w-0 px-2 py-1.5 rounded-lg text-[11px] font-medium flex items-center gap-1.5 border transition-all text-left cursor-pointer min-h-[38px] box-border ${
+                              checked
+                                ? "bg-purple-50 border-purple-300 text-purple-900 font-semibold shadow-2xs"
+                                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                            }`}
+                          >
+                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 self-center ${
+                              checked ? "bg-purple-600 border-purple-600 text-white" : "border-slate-300 bg-white"
+                            }`}>
+                              {checked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                            </div>
+                            <span className="min-w-0 text-[11px] font-medium leading-tight whitespace-normal text-wrap break-words [word-break:break-word] [overflow-wrap:anywhere] flex-1">{cat}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </form>
               </div>
 
@@ -6423,6 +6760,70 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                                       {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
                                     </div>
                                     <span className="truncate">{t.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Seção de Categorias / Componentes Curriculares no Card do Usuário */}
+                          <div className="w-full pt-2.5 border-t border-slate-100 box-border space-y-2">
+                            <div className="flex items-center justify-between flex-wrap gap-1">
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                Componentes Curriculares / Categorias ({(u.categorias || []).length} de {todasCategoriasDisponiveis.length}):
+                              </label>
+                              <div className="flex items-center gap-2 text-[10px]">
+                                <button
+                                  type="button"
+                                  onClick={() => selecionarTodasCategoriasUsuario(u.id, u.email || "", todasCategoriasDisponiveis, u.legacyDocIds)}
+                                  className="text-purple-600 font-bold hover:underline cursor-pointer"
+                                >
+                                  Todas
+                                </button>
+                                <span className="text-slate-300">•</span>
+                                <button
+                                  type="button"
+                                  onClick={() => desmarcarTodasCategoriasUsuario(u.id, u.email || "", u.legacyDocIds)}
+                                  className="text-rose-600 font-bold hover:underline cursor-pointer"
+                                >
+                                  Nenhuma
+                                </button>
+                              </div>
+                            </div>
+
+                            {isDocenteRole(currentRole) && (!u.categorias || u.categorias.length === 0) && (
+                              <p className="text-[10px] text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200 font-medium">
+                                ⚠️ Nenhuma categoria vinculada. Como Auxiliar / Professor, este usuário não verá atividades nos semanários.
+                              </p>
+                            )}
+
+                            {!isDocenteRole(currentRole) && (
+                              <p className="text-[10px] text-teal-700 bg-teal-50 p-2 rounded-lg border border-teal-200 font-medium">
+                                ℹ️ Como {currentRole === "admin" ? "Administrador" : "Coordenador"}, este usuário possui permissão total em todas as categorias.
+                              </p>
+                            )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-1.5 w-full box-border pt-1 max-h-60 overflow-y-auto p-1.5 border border-slate-200 rounded-xl bg-slate-50/50">
+                              {todasCategoriasDisponiveis.map((cat) => {
+                                const catsDoUser = Array.isArray(u.categorias) ? u.categorias : [];
+                                const isChecked = catsDoUser.includes(cat);
+                                return (
+                                  <button
+                                    key={cat}
+                                    type="button"
+                                    onClick={() => alternarCategoriaUsuario(u.id, u.email || "", cat, catsDoUser, u.legacyDocIds)}
+                                    className={`w-full min-w-0 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer box-border text-left min-h-[38px] ${
+                                      isChecked
+                                        ? "bg-purple-50/90 border border-purple-300 text-purple-950 font-semibold"
+                                        : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+                                    }`}
+                                  >
+                                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 self-center ${
+                                      isChecked ? "bg-purple-600 border-purple-600 text-white" : "border-slate-300 bg-white"
+                                    }`}>
+                                      {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                                    </div>
+                                    <span className="min-w-0 text-[11px] font-medium leading-tight whitespace-normal text-wrap break-words [word-break:break-word] [overflow-wrap:anywhere] flex-1">{cat}</span>
                                   </button>
                                 );
                               })}
