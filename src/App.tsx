@@ -522,6 +522,64 @@ export const isDocenteRole = (role?: string): boolean => {
   return r === "auxiliar" || r === "teacher" || r === "professor" || r === "docente";
 };
 
+export interface AtribuicaoUsuario {
+  id: string;
+  tipo: "auxiliar" | "especialista";
+  turmas: string[];
+  categorias: string[];
+}
+
+export const podeAcessarAtividade = (
+  turmaId: string,
+  categoriaNome: string,
+  userAtribuicoes: AtribuicaoUsuario[] = [],
+  userRole: string = "auxiliar",
+  userTurmas: string[] = [],
+  userCategorias: string[] = []
+): boolean => {
+  if (!isDocenteRole(userRole)) return true; // Admins and Coordenadores have full access
+  const catPura = obterCategoriaPura(categoriaNome);
+
+  if (Array.isArray(userAtribuicoes) && userAtribuicoes.length > 0) {
+    for (const atb of userAtribuicoes) {
+      if (Array.isArray(atb.turmas) && atb.turmas.includes(turmaId)) {
+        if (atb.tipo === "auxiliar") {
+          // Auxiliar (Acesso Geral da Turma): if no categories specified, grants access to ALL categories in that turma
+          if (!atb.categorias || atb.categorias.length === 0) return true;
+          if (atb.categorias.includes(catPura)) return true;
+        } else if (atb.tipo === "especialista") {
+          // Especialista (Acesso Específico por Categoria): grants access ONLY to specified categories in that turma
+          if (Array.isArray(atb.categorias) && atb.categorias.includes(catPura)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  // Fallback for legacy user profile structure
+  if (Array.isArray(userTurmas) && userTurmas.includes(turmaId)) {
+    if (!Array.isArray(userCategorias) || userCategorias.length === 0) return true;
+    return userCategorias.includes(catPura);
+  }
+
+  return false;
+};
+
+export const podeAcessarTurma = (
+  turmaId: string,
+  userAtribuicoes: AtribuicaoUsuario[] = [],
+  userRole: string = "auxiliar",
+  userTurmas: string[] = []
+): boolean => {
+  if (!isDocenteRole(userRole)) return true;
+  if (Array.isArray(userAtribuicoes) && userAtribuicoes.length > 0) {
+    return userAtribuicoes.some(atb => Array.isArray(atb.turmas) && atb.turmas.includes(turmaId));
+  }
+  return Array.isArray(userTurmas) && userTurmas.includes(turmaId);
+};
+
 export default function App() {
   // Funções de carregamento inicial
   const loadLocal = (key: string, def: any) => {
@@ -537,6 +595,7 @@ export default function App() {
   const [userRole, setUserRole] = useState<"admin" | "coordenador" | "auxiliar" | "teacher" | "professor">("auxiliar");
   const [userTurmas, setUserTurmas] = useState<string[]>([]);
   const [userCategorias, setUserCategorias] = useState<string[]>([]);
+  const [userAtribuicoes, setUserAtribuicoes] = useState<AtribuicaoUsuario[]>([]);
 
   const [guestMode, setGuestMode] = useState(() => {
     try {
@@ -558,6 +617,12 @@ export default function App() {
   const [excluindoUsuario, setExcluindoUsuario] = useState(false);
   const [usuarioExpandidoId, setUsuarioExpandidoId] = useState<string | null>(null);
 
+  // Estados para adicionar Novo Grupo de Atuação / Atribuição (Perfil Duplo)
+  const [addGrupoTipo, setAddGrupoTipo] = useState<"auxiliar" | "especialista">("auxiliar");
+  const [addGrupoTurmas, setAddGrupoTurmas] = useState<string[]>([]);
+  const [addGrupoCategorias, setAddGrupoCategorias] = useState<string[]>([]);
+  const [addGrupoAcessoGeral, setAddGrupoAcessoGeral] = useState<boolean>(true);
+
   // Inscrição em tempo real na coleção "usuarios" para administradores com consolidação por e-mail
   useEffect(() => {
     if (!user || guestMode || userRole !== "admin") return;
@@ -569,6 +634,7 @@ export default function App() {
         role: "admin" | "coordenador" | "auxiliar";
         turmas: string[];
         categorias: string[];
+        atribuicoes: AtribuicaoUsuario[];
         legacyDocIds: string[];
         updatedAt?: string;
         createdAt?: string;
@@ -584,6 +650,7 @@ export default function App() {
         const docTurmas = Array.isArray(data.turmas) ? data.turmas : [];
         const docCategoriasRaw = Array.isArray(data.categorias) ? data.categorias : [];
         const docCategorias = docCategoriasRaw.map((c: string) => c.trim().toLowerCase() === "coral e canto" ? "Coral" : c);
+        const docAtribuicoesRaw = Array.isArray(data.atribuicoes) ? data.atribuicoes : [];
         const docUid = data.uid || (docId !== emailKey ? docId : "");
 
         if (!mapByEmail.has(emailKey)) {
@@ -594,6 +661,7 @@ export default function App() {
             role: docRole as any,
             turmas: docTurmas,
             categorias: docCategorias,
+            atribuicoes: docAtribuicoesRaw,
             legacyDocIds: docId !== emailKey ? [docId] : [],
             updatedAt: data.updatedAt || data.createdAt || "",
             createdAt: data.createdAt || ""
@@ -615,12 +683,24 @@ export default function App() {
             existing.role = docRole as any;
           }
 
-          // União de turmas e categorias
+          // União de turmas, categorias e atribuições
           const turmasSet = new Set([...existing.turmas, ...docTurmas]);
           existing.turmas = Array.from(turmasSet);
 
           const categoriasSet = new Set([...(existing.categorias || []), ...docCategorias]);
           existing.categorias = Array.from(categoriasSet);
+
+          if (docAtribuicoesRaw.length > 0) {
+            if (!existing.atribuicoes || existing.atribuicoes.length === 0) {
+              existing.atribuicoes = docAtribuicoesRaw;
+            } else {
+              // Combine unique atribuicoes by id
+              const atbMap = new Map<string, AtribuicaoUsuario>();
+              existing.atribuicoes.forEach(a => atbMap.set(a.id, a));
+              docAtribuicoesRaw.forEach((a: AtribuicaoUsuario) => atbMap.set(a.id, a));
+              existing.atribuicoes = Array.from(atbMap.values());
+            }
+          }
 
           if (data.updatedAt && (!existing.updatedAt || data.updatedAt > existing.updatedAt)) {
             existing.updatedAt = data.updatedAt;
@@ -935,6 +1015,80 @@ export default function App() {
     }
   };
 
+  const adicionarGrupoAoUsuario = async (userObj: any) => {
+    if (addGrupoTurmas.length === 0) {
+      toast$("Selecione pelo menos uma turma para o grupo de atuação.", "erro");
+      return;
+    }
+    if (addGrupoTipo === "especialista" && addGrupoCategorias.length === 0) {
+      toast$("Selecione pelo menos uma categoria específica para a atuação como Especialista.", "erro");
+      return;
+    }
+
+    const emailKey = userObj.email ? userObj.email.trim().toLowerCase() : userObj.id;
+    const currentAtbs: AtribuicaoUsuario[] = Array.isArray(userObj.atribuicoes) && userObj.atribuicoes.length > 0
+      ? userObj.atribuicoes
+      : (Array.isArray(userObj.turmas) && userObj.turmas.length > 0)
+        ? [{ id: "leg_" + Date.now(), tipo: "auxiliar", turmas: userObj.turmas, categorias: userObj.categorias || [] }]
+        : [];
+
+    const novaAtb: AtribuicaoUsuario = {
+      id: "atb_" + Date.now(),
+      tipo: addGrupoTipo,
+      turmas: [...addGrupoTurmas],
+      categorias: addGrupoTipo === "auxiliar" && addGrupoAcessoGeral ? [] : [...addGrupoCategorias]
+    };
+
+    const updatedAtbs = [...currentAtbs, novaAtb];
+    const unionTurmas = Array.from(new Set(updatedAtbs.flatMap(a => a.turmas || [])));
+    const unionCategorias = Array.from(new Set(updatedAtbs.flatMap(a => a.categorias || [])));
+
+    try {
+      await setDoc(doc(db, "usuarios", emailKey), {
+        email: emailKey,
+        atribuicoes: updatedAtbs,
+        turmas: unionTurmas,
+        categorias: unionCategorias,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      if (userObj.legacyDocIds && userObj.legacyDocIds.length > 0) {
+        await limparDuplicatasLegadas(userObj.legacyDocIds);
+      }
+
+      toast$("Novo grupo de atuação vinculado com sucesso!");
+      setAddGrupoTurmas([]);
+      setAddGrupoCategorias([]);
+    } catch (err: any) {
+      console.error("Erro ao adicionar grupo de atuação:", err);
+      toast$("Erro ao salvar no Firestore.", "erro");
+    }
+  };
+
+  const removerGrupoDoUsuario = async (userObj: any, atbIdToRemove: string) => {
+    const emailKey = userObj.email ? userObj.email.trim().toLowerCase() : userObj.id;
+    const currentAtbs: AtribuicaoUsuario[] = Array.isArray(userObj.atribuicoes) ? userObj.atribuicoes : [];
+    const updatedAtbs = currentAtbs.filter(a => a.id !== atbIdToRemove);
+
+    const unionTurmas = Array.from(new Set(updatedAtbs.flatMap(a => a.turmas || [])));
+    const unionCategorias = Array.from(new Set(updatedAtbs.flatMap(a => a.categorias || [])));
+
+    try {
+      await setDoc(doc(db, "usuarios", emailKey), {
+        email: emailKey,
+        atribuicoes: updatedAtbs,
+        turmas: unionTurmas,
+        categorias: unionCategorias,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      toast$("Grupo de atuação removido do usuário.");
+    } catch (err: any) {
+      console.error("Erro ao remover grupo de atuação:", err);
+      toast$("Erro ao salvar no Firestore.", "erro");
+    }
+  };
+
   const adicionarOuAtualizarUsuarioPorEmail = async (e: FormEvent) => {
     e.preventDefault();
     if (!novoEmailUsuario.trim()) return;
@@ -974,11 +1128,10 @@ export default function App() {
   const canEditAtv = (atv: any, turmaId?: string) => {
     if (!user || guestMode) return true; // full access in guest/offline mode
     if (userRole === "admin" || userRole === "coordenador") return true;
-    if (turmaId && userTurmas && userTurmas.length > 0 && !userTurmas.includes(turmaId)) return false;
-    if (isDocenteRole(userRole) && Array.isArray(userCategorias)) {
-      if (userCategorias.length === 0) return false;
-      const cat = obterCategoriaPura(atv?.nome || "");
-      if (!userCategorias.includes(cat)) return false;
+    if (turmaId) {
+      if (!podeAcessarAtividade(turmaId, atv?.nome || "", userAtribuicoes, userRole, userTurmas, userCategorias)) {
+        return false;
+      }
     }
     return !atv.criadoPorEmail || atv.criadoPorEmail === user.email || atv.criadoPorEmail === "Local";
   };
@@ -1019,11 +1172,8 @@ export default function App() {
     if (!user || guestMode || (!isDocenteRole(userRole) && (userRole === "admin" || userRole === "coordenador"))) {
       return turmas;
     }
-    if (!userTurmas || userTurmas.length === 0) {
-      return [];
-    }
-    return turmas.filter((t: any) => userTurmas.includes(t.id));
-  }, [turmas, user, guestMode, userRole, userTurmas]);
+    return turmas.filter((t: any) => podeAcessarTurma(t.id, userAtribuicoes, userRole, userTurmas));
+  }, [turmas, user, guestMode, userRole, userAtribuicoes, userTurmas]);
 
   useEffect(() => {
     if (user && !guestMode && isDocenteRole(userRole)) {
@@ -1306,6 +1456,8 @@ export default function App() {
               }
 
               setUserRole(effectiveRole);
+              const docAtb = Array.isArray(data.atribuicoes) ? data.atribuicoes : [];
+              setUserAtribuicoes(docAtb);
               setUserTurmas(Array.isArray(data.turmas) ? data.turmas : []);
               const catList = Array.isArray(data.categorias) ? data.categorias.map((c: string) => c.trim().toLowerCase() === "coral e canto" ? "Coral" : c) : [];
               setUserCategorias(catList);
@@ -1527,12 +1679,9 @@ export default function App() {
 
     return atividadesPesquisa.filter((a: any) => {
       if (user && !guestMode && isDocenteRole(userRole)) {
-        if (userTurmas && userTurmas.length > 0 && a.turmaId && !userTurmas.includes(a.turmaId)) {
-          return false;
-        }
-        if (Array.isArray(userCategorias)) {
+        if (a.turmaId) {
           const atvCat = (a.categoria || obterCategoriaPura(a.nome || "")).trim();
-          if (!userCategorias.includes(atvCat)) {
+          if (!podeAcessarAtividade(a.turmaId, atvCat, userAtribuicoes, userRole, userTurmas, userCategorias)) {
             return false;
           }
         }
@@ -1548,7 +1697,7 @@ export default function App() {
       if (pesquisaCriador && !(a.criadoPorEmail || "").toLowerCase().includes(criador)) return false;
       return true;
     });
-  }, [atividadesPesquisa, pesquisaQuery, pesquisaCategoria, pesquisaTurma, pesquisaCriador, user, guestMode, userRole, userTurmas, userCategorias]);
+  }, [atividadesPesquisa, pesquisaQuery, pesquisaCategoria, pesquisaTurma, pesquisaCriador, user, guestMode, userRole, userAtribuicoes, userTurmas, userCategorias]);
 
   useEffect(() => {
     if (telaBiblioteca) {
@@ -2975,9 +3124,11 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   };
 
   const salvar = () => {
-    if (user && !guestMode && userRole === "auxiliar" && turmaSel && !userTurmas.includes(turmaSel.id)) {
-      toast$("Você não tem permissão para preencher semanários desta turma.", "erro");
-      return;
+    if (user && !guestMode && isDocenteRole(userRole) && turmaSel && atividadeSel) {
+      if (!podeAcessarAtividade(turmaSel.id, atividadeSel.nome || "", userAtribuicoes, userRole, userTurmas, userCategorias)) {
+        toast$("Você não tem permissão para preencher semanários desta atividade.", "erro");
+        return;
+      }
     }
     if (!formData.status) { toast$("Selecione o status.", "erro"); return; }
     if (formData.status === "nao_realizada" && !formData.justificativa?.trim()) { toast$("Justifique a não realização.", "erro"); return; }
@@ -2993,9 +3144,11 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   };
 
   const handleMidia = async (e: any) => {
-    if (user && !guestMode && userRole === "auxiliar" && turmaSel && !userTurmas.includes(turmaSel.id)) {
-      toast$("Você não tem permissão para adicionar mídias nesta turma.", "erro");
-      return;
+    if (user && !guestMode && isDocenteRole(userRole) && turmaSel && atividadeSel) {
+      if (!podeAcessarAtividade(turmaSel.id, atividadeSel.nome || "", userAtribuicoes, userRole, userTurmas, userCategorias)) {
+        toast$("Você não tem permissão para adicionar mídias nesta atividade.", "erro");
+        return;
+      }
     }
     const k = chave(turmaSel.id, atividadeSel.id);
     const novas: any[] = [];
@@ -4100,12 +4253,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
   const progTurma = (tId: string) => {
     let a = ATIVIDADES[tId] || [];
-    if (user && !guestMode && isDocenteRole(userRole) && Array.isArray(userCategorias)) {
-      if (userCategorias.length > 0) {
-        a = a.filter((x: any) => userCategorias.includes(obterCategoriaPura(x.nome)));
-      } else {
-        a = [];
-      }
+    if (user && !guestMode && isDocenteRole(userRole)) {
+      a = a.filter((x: any) => podeAcessarAtividade(tId, x.nome || "", userAtribuicoes, userRole, userTurmas, userCategorias));
     }
     const d = a.filter((x: any) => getReg(tId, x.id)).length;
     return { done: d, total: a.length, pct: a.length ? Math.round(d/a.length*100) : 0 };
@@ -5875,8 +6024,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
               {(() => {
                 const listBruta = ATIVIDADES[turmaSel.id] || [];
-                const listFiltrada = (user && !guestMode && isDocenteRole(userRole) && Array.isArray(userCategorias))
-                  ? listBruta.filter((a: any) => userCategorias.includes(obterCategoriaPura(a.nome || "")))
+                const listFiltrada = (user && !guestMode && isDocenteRole(userRole))
+                  ? listBruta.filter((a: any) => podeAcessarAtividade(turmaSel.id, a.nome || "", userAtribuicoes, userRole, userTurmas, userCategorias))
                   : listBruta;
                 return [...listFiltrada].sort((a: any, b: any) => a.nome.localeCompare(b.nome));
               })().map((a: any) => {
@@ -6046,8 +6195,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
               {(() => {
                 const listBruta = ATIVIDADES[turmaSel.id] || [];
-                const listFiltrada = (user && !guestMode && isDocenteRole(userRole) && Array.isArray(userCategorias))
-                  ? listBruta.filter((a: any) => userCategorias.includes(obterCategoriaPura(a.nome || "")))
+                const listFiltrada = (user && !guestMode && isDocenteRole(userRole))
+                  ? listBruta.filter((a: any) => podeAcessarAtividade(turmaSel.id, a.nome || "", userAtribuicoes, userRole, userTurmas, userCategorias))
                   : listBruta;
                 if (listFiltrada.length === 0) {
                   return (
@@ -6058,9 +6207,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                       <h4 className="font-extrabold text-sm text-slate-800">Nenhuma atividade disponível</h4>
                       <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
                         {user && !guestMode && isDocenteRole(userRole)
-                          ? userCategorias.length === 0
-                            ? "Sua conta de Auxiliar / Professor não possui Componentes Curriculares / Categorias atribuídos. Entre em contato com um Administrador para vincular suas categorias no Gerenciamento de Usuários."
-                            : `Não há atividades nesta turma pertencentes às suas categorias atribuídas (${userCategorias.join(", ")}).`
+                          ? "Sua conta não possui permissão para visualizar atividades nesta turma. Verifique suas atribuições de perfil de acesso (Auxiliar / Especialista) no Gerenciamento de Usuários."
                           : "Nenhuma atividade planejada para esta turma."}
                       </p>
                       {(!user || guestMode || !isDocenteRole(userRole)) && (
@@ -6655,8 +6802,25 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                       const currentRole = u.role || "auxiliar";
                       const temDuplicatas = u.legacyDocIds && u.legacyDocIds.length > 0;
                       const isExpanded = usuarioExpandidoId === u.id;
-                      const numTurmas = Array.isArray(u.turmas) ? u.turmas.length : 0;
-                      const numCategorias = Array.isArray(u.categorias) ? u.categorias.length : 0;
+
+                      const userAtribuicoesList = Array.isArray(u.atribuicoes) && u.atribuicoes.length > 0 
+                        ? u.atribuicoes 
+                        : (Array.isArray(u.turmas) && u.turmas.length > 0)
+                          ? [{ id: "legacy", tipo: "auxiliar" as const, turmas: u.turmas, categorias: u.categorias || [] }]
+                          : [];
+
+                      const uniqueTurmas = Array.from(new Set([
+                        ...(u.turmas || []),
+                        ...userAtribuicoesList.flatMap((a: any) => a.turmas || [])
+                      ]));
+
+                      const uniqueCategorias = Array.from(new Set([
+                        ...(u.categorias || []),
+                        ...userAtribuicoesList.flatMap((a: any) => a.categorias || [])
+                      ]));
+
+                      const numTurmas = uniqueTurmas.length;
+                      const numCategorias = uniqueCategorias.length;
 
                       const roleLabel = isDocenteRole(currentRole) 
                         ? "Auxiliar / Professor" 
@@ -6801,6 +6965,236 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                                       </button>
                                     );
                                   })}
+                                </div>
+                              </div>
+
+                              {/* Seção de Grupos de Atuação / Perfil Duplo */}
+                              <div className="w-full pt-3 border-t border-slate-200/80 box-border space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <label className="block text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Layers className="w-4 h-4 text-purple-600" />
+                                    Grupos de Atuação (Perfil Duplo / Vínculo Turma x Categoria)
+                                  </label>
+                                </div>
+
+                                {/* Lista de Grupos Existentes */}
+                                {(() => {
+                                  const atbsDoUsuario: AtribuicaoUsuario[] = Array.isArray(u.atribuicoes) && u.atribuicoes.length > 0
+                                    ? u.atribuicoes
+                                    : (Array.isArray(u.turmas) && u.turmas.length > 0)
+                                      ? [{ id: "leg_def", tipo: "auxiliar", turmas: u.turmas, categorias: u.categorias || [] }]
+                                      : [];
+
+                                  if (atbsDoUsuario.length === 0) {
+                                    return (
+                                      <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 text-[11px] text-amber-800">
+                                        Nenhum grupo de atuação vinculado. Adicione uma atuação como Auxiliar (Acesso Geral) ou Especialista (Acesso Específico) abaixo.
+                                      </div>
+                                    );
+                                  }
+
+                                  return (
+                                    <div className="space-y-2">
+                                      {atbsDoUsuario.map((atb, idx) => {
+                                        const isAux = atb.tipo === "auxiliar";
+                                        const turmasList = turmas.filter(t => (atb.turmas || []).includes(t.id));
+                                        const catsList = atb.categorias || [];
+
+                                        return (
+                                          <div key={atb.id || idx} className="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs space-y-2">
+                                            <div className="flex items-center justify-between gap-2">
+                                              <div className="flex items-center gap-2 flex-wrap">
+                                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md border ${
+                                                  isAux 
+                                                    ? "bg-blue-50 text-blue-700 border-blue-200" 
+                                                    : "bg-purple-50 text-purple-700 border-purple-200"
+                                                }`}>
+                                                  {isAux ? "Atuação como Auxiliar (Acesso Geral da Turma)" : "Atuação como Especialista (Acesso Específico por Categoria)"}
+                                                </span>
+                                              </div>
+                                              <button
+                                                type="button"
+                                                onClick={() => removerGrupoDoUsuario(u, atb.id)}
+                                                className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 p-1 rounded-lg transition-colors cursor-pointer"
+                                                title="Remover este grupo de atuação"
+                                              >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                              </button>
+                                            </div>
+
+                                            {/* Turmas do Grupo */}
+                                            <div className="text-[11px]">
+                                              <span className="font-bold text-slate-500">Turmas Vinculadas: </span>
+                                              {turmasList.length > 0 ? (
+                                                <span className="inline-flex flex-wrap gap-1 align-middle ml-1">
+                                                  {turmasList.map(t => (
+                                                    <span key={t.id} className="bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.2 rounded font-medium text-[10px]">
+                                                      {t.label}
+                                                    </span>
+                                                  ))}
+                                                </span>
+                                              ) : (
+                                                <span className="text-slate-400 italic">Nenhuma turma</span>
+                                              )}
+                                            </div>
+
+                                            {/* Categorias do Grupo */}
+                                            <div className="text-[11px]">
+                                              <span className="font-bold text-slate-500">Categorias Ministradas: </span>
+                                              {isAux && (!catsList || catsList.length === 0) ? (
+                                                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded font-bold text-[10px]">
+                                                  ✓ Acesso Geral a todas as categorias da turma
+                                                </span>
+                                              ) : catsList.length > 0 ? (
+                                                <span className="inline-flex flex-wrap gap-1 align-middle ml-1">
+                                                  {catsList.map(c => (
+                                                    <span key={c} className="bg-purple-50 text-purple-800 border border-purple-200 px-1.5 py-0.2 rounded font-semibold text-[10px]">
+                                                      {c}
+                                                    </span>
+                                                  ))}
+                                                </span>
+                                              ) : (
+                                                <span className="text-slate-400 italic">Nenhuma categoria específica</span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                })()}
+
+                                {/* Formulário Inline para Adicionar Novo Grupo ao Usuário */}
+                                <div className="bg-slate-100/80 border border-slate-200/90 rounded-2xl p-3.5 space-y-3">
+                                  <h5 className="text-[11px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                                    <Plus className="w-3.5 h-3.5 text-blue-600" />
+                                    Adicionar Grupo de Atuação (Perfil Duplo)
+                                  </h5>
+
+                                  {/* Seleção de Tipo de Atuação */}
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => { setAddGrupoTipo("auxiliar"); setAddGrupoAcessoGeral(true); }}
+                                      className={`p-2 rounded-xl text-left border transition-all text-xs font-bold cursor-pointer ${
+                                        addGrupoTipo === "auxiliar"
+                                          ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
+                                          : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                                      }`}
+                                    >
+                                      <div>Atuação como Auxiliar</div>
+                                      <div className={`text-[9px] font-normal mt-0.5 ${addGrupoTipo === "auxiliar" ? "text-blue-100" : "text-slate-400"}`}>
+                                        Acesso Geral / Rotina da Turma
+                                      </div>
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => { setAddGrupoTipo("especialista"); setAddGrupoAcessoGeral(false); }}
+                                      className={`p-2 rounded-xl text-left border transition-all text-xs font-bold cursor-pointer ${
+                                        addGrupoTipo === "especialista"
+                                          ? "bg-purple-600 text-white border-purple-600 shadow-2xs"
+                                          : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                                      }`}
+                                    >
+                                      <div>Atuação como Especialista</div>
+                                      <div className={`text-[9px] font-normal mt-0.5 ${addGrupoTipo === "especialista" ? "text-purple-100" : "text-slate-400"}`}>
+                                        Acesso Específico por Categoria (ex: Coral)
+                                      </div>
+                                    </button>
+                                  </div>
+
+                                  {/* Seleção de Turmas do Novo Grupo */}
+                                  <div className="space-y-1">
+                                    <label className="block text-[10px] font-bold text-slate-600 uppercase">
+                                      1. Selecione as Turmas deste grupo:
+                                    </label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 max-h-36 overflow-y-auto p-1 bg-white border border-slate-200 rounded-xl">
+                                      {ordenarTurmas(turmas).map(t => {
+                                        const isSel = addGrupoTurmas.includes(t.id);
+                                        return (
+                                          <button
+                                            key={t.id}
+                                            type="button"
+                                            onClick={() => {
+                                              setAddGrupoTurmas(prev => isSel ? prev.filter(x => x !== t.id) : [...prev, t.id]);
+                                            }}
+                                            className={`px-2 py-1.5 rounded-lg text-[10px] font-semibold text-left border transition-all flex items-center gap-1.5 cursor-pointer ${
+                                              isSel
+                                                ? "bg-blue-50 border-blue-300 text-blue-900 font-bold"
+                                                : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                                            }`}
+                                          >
+                                            <div className={`w-3 h-3 rounded border flex items-center justify-center shrink-0 ${
+                                              isSel ? "bg-blue-600 border-blue-600 text-white" : "bg-white border-slate-300"
+                                            }`}>
+                                              {isSel && <Check className="w-2 h-2 stroke-[3]" />}
+                                            </div>
+                                            <span className="truncate">{t.label}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  {/* Seleção de Categorias do Novo Grupo */}
+                                  <div className="space-y-1">
+                                    <div className="flex items-center justify-between">
+                                      <label className="block text-[10px] font-bold text-slate-600 uppercase">
+                                        2. Selecione as Categorias / Componentes Curriculares:
+                                      </label>
+                                      {addGrupoTipo === "auxiliar" && (
+                                        <label className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 cursor-pointer">
+                                          <input
+                                            type="checkbox"
+                                            checked={addGrupoAcessoGeral}
+                                            onChange={(e) => setAddGrupoAcessoGeral(e.target.checked)}
+                                            className="rounded text-emerald-600 focus:ring-emerald-500"
+                                          />
+                                          Acesso Geral (Todas)
+                                        </label>
+                                      )}
+                                    </div>
+
+                                    {!(addGrupoTipo === "auxiliar" && addGrupoAcessoGeral) && (
+                                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 max-h-36 overflow-y-auto p-1 bg-white border border-slate-200 rounded-xl">
+                                        {todasCategoriasDisponiveis.map(cat => {
+                                          const isSel = addGrupoCategorias.includes(cat);
+                                          return (
+                                            <button
+                                              key={cat}
+                                              type="button"
+                                              onClick={() => {
+                                                setAddGrupoCategorias(prev => isSel ? prev.filter(x => x !== cat) : [...prev, cat]);
+                                              }}
+                                              className={`px-2 py-1.5 rounded-lg text-[10px] font-semibold text-left border transition-all flex items-center gap-1.5 cursor-pointer ${
+                                                isSel
+                                                  ? "bg-purple-50 border-purple-300 text-purple-900 font-bold"
+                                                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                                              }`}
+                                            >
+                                              <div className={`w-3 h-3 rounded border flex items-center justify-center shrink-0 ${
+                                                isSel ? "bg-purple-600 border-purple-600 text-white" : "bg-white border-slate-300"
+                                              }`}>
+                                                {isSel && <Check className="w-2 h-2 stroke-[3]" />}
+                                              </div>
+                                              <span className="truncate">{cat}</span>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Botão de Ação */}
+                                  <button
+                                    type="button"
+                                    onClick={() => adicionarGrupoAoUsuario(u)}
+                                    className="w-full py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all active:scale-98 flex items-center justify-center gap-1.5 cursor-pointer"
+                                  >
+                                    <Plus className="w-4 h-4" />
+                                    <span>Vincular Este Grupo de Atuação ao Usuário</span>
+                                  </button>
                                 </div>
                               </div>
 
