@@ -2064,9 +2064,59 @@ export default function App() {
       return line;
     });
 
-    const descricaoFormatada = descLines.join("\n\n");
+    const descricaoFormatada = formatarParagrafosDescricao(descLines.join("\n\n"));
 
     return { titulo: nomeFormatado, descricao: descricaoFormatada };
+  };
+
+  const formatarParagrafosDescricao = (texto: string): string => {
+    if (!texto || typeof texto !== "string") return "";
+    let t = texto.trim();
+    if (!t) return "";
+
+    const topicos = [
+      "Proposta", "Dinâmica", "Dinamica", "Materiais", "Importante",
+      "Versículo", "Versiculo", "Atividade", "Atividades", "Reflexão",
+      "Reflexao", "Momento de Oração", "Momento de oracao", "Objetivo", "Orientações", "Orientacoes"
+    ];
+
+    topicos.forEach(topico => {
+      const regex = new RegExp(`(?<!^|\\n\\s*)\\s*(${topico}\\s*:)\\s*`, "gi");
+      t = t.replace(regex, "\n\n$1 ");
+    });
+
+    return t.replace(/\n{3,}/g, "\n\n").trim();
+  };
+
+  const renderDescricaoNoPdf = (doc: any, desc: string, margin: number, startY: number): number => {
+    let y = startY;
+    const formattedDesc = formatarParagrafosDescricao(desc || "");
+    const paragrafos = formattedDesc.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+
+    if (paragrafos.length === 0) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text("(Sem descrição cadastrada)", margin, y);
+      return y + 6;
+    }
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10.5);
+    doc.setTextColor(15, 23, 42);
+
+    for (let i = 0; i < paragrafos.length; i++) {
+      const p = paragrafos[i].trim();
+      if (y > 240) {
+        doc.addPage();
+        y = 20;
+      }
+      const lines = doc.splitTextToSize(p, 180);
+      doc.text(lines, margin, y);
+      y += lines.length * 5.2 + (i < paragrafos.length - 1 ? 4 : 2);
+    }
+
+    return y;
   };
 
   const obterHistoricoExclusao = (turma: any, atividade: any, s: any) => {
@@ -3857,12 +3907,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
         }
         y += 1;
 
-        // High-contrast, highly legible description body text
-        doc.setFontSize(11);
-        doc.setTextColor(15, 23, 42); // slate-900 (dense dark text, very clear)
-        const descLines = doc.splitTextToSize(a.descricao, 180);
-        doc.text(descLines, margin, y);
-        y += descLines.length * 5.5 + 3;
+        // High-contrast, highly legible description body text with uniform font size and paragraph breaks
+        y = renderDescricaoNoPdf(doc, a.descricao, margin, y) + 2;
 
         const status = reg ? STATUS_CONFIG[reg.status] : STATUS_CONFIG.pendente;
         doc.setFont("helvetica", "bold");
@@ -4029,12 +4075,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     }
     y += 1;
 
-    // High contrast, legible main description
-    doc.setFontSize(11);
-    doc.setTextColor(15, 23, 42); // slate-900 (extremely clear, dense black)
-    const descLines = doc.splitTextToSize(a.descricao || "", 180);
-    doc.text(descLines, margin, y);
-    y += descLines.length * 5.5 + 3;
+    // High contrast, legible main description with uniform font size and paragraph breaks
+    y = renderDescricaoNoPdf(doc, a.descricao || "", margin, y) + 2;
 
     const status = reg ? STATUS_CONFIG[reg.status] : STATUS_CONFIG.pendente;
     doc.setFont("helvetica", "bold");
@@ -4238,12 +4280,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
         y += 5;
       }
 
-      // Description
-      doc.setFontSize(10.5);
-      doc.setTextColor(15, 23, 42);
-      const descLines = doc.splitTextToSize(a.descricao || "(Sem descrição cadastrada)", 180);
-      doc.text(descLines, margin, y);
-      y += descLines.length * 5.2 + 3;
+      // Description with uniform font size and paragraph breaks
+      y = renderDescricaoNoPdf(doc, a.descricao || "", margin, y) + 2;
 
       // Status
       const status = reg ? STATUS_CONFIG[reg.status] : STATUS_CONFIG.pendente;

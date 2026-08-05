@@ -111,9 +111,11 @@ REGRAS DE EXTRAÇÃO E MAPEAMENTO:
    - Extraia TODAS as atividades/matérias presentes para cada turma no PDF (Devocional, Artes, Psicomotricidade, Contação de História, Lego, Projetos, Musica, Estímulo Motor, etc.).
    - Se o PDF contiver linhas de exemplo ou instruções genéricas (ex: "... (Insira as atividades da turma aqui)"), ignore-as e extraia apenas atividades reais e válidas.
 
-4. PADRONIZAÇÃO DO NOME E DESCRIÇÃO:
-   - Formate o campo 'nome' como "NomeDaCategoria: \n Título da Atividade" (ex: "Devocional: \n Passeio pelo Lindo Zoológico de Deus", "Artes: \n Sombra dos Animais", "Psicomotricidade: \n Imitando os Sons e Atitudes dos Animais").
-   - Mantenha ou organize a 'descricao' em tópicos claros (Proposta, Dinâmica, Materiais, Importante, Versículo, Atividades).
+4. PADRONIZAÇÃO DO NOME E ESTRUTURAÇÃO DA DESCRIÇÃO COM PARÁGRAFOS SEPARADOS:
+   - Formate o campo 'nome' como "NomeDaCategoria: \n Título da Atividade" (ex: "Devocional: \n Passeio pelo Lindo Zoológico de Deus", "Artes: \n Sombra dos Animais").
+   - A 'descricao' DEVE SER OBRIGATORIAMENTE ESTRUTURADA EM PARÁGRAFOS SEPARADOS POR LINHA EM BRANCO DUPLA (\n\n) entre cada tópico (Proposta, Dinâmica, Materiais, Importante, Versículo, Atividades).
+   - Exemplo de formato de 'descricao':
+     Proposta: ...\n\nDinâmica: ...\n\nMateriais: ...\n\nImportante: ...
    - Corrija ortografia, erros de pontuação e quebras de linha indevidas do PDF.
 
 Retorne obrigatoriamente um objeto JSON com o array 'turmas'.`,
