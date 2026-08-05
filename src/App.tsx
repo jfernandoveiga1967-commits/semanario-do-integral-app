@@ -5485,7 +5485,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
           >
-            <div className="bg-gradient-to-br from-blue-700 to-blue-500 text-white p-6 pb-8 shadow-lg">
+            <div className="bg-gradient-to-br from-blue-700 to-blue-500 text-white pt-10 sm:pt-6 px-4 sm:px-6 pb-8 shadow-lg">
               {user ? (
                 <div className="space-y-2 mb-4 bg-blue-800/20 p-3 rounded-xl border border-blue-400/10">
                   <div className="flex items-center justify-between text-[11px] font-bold text-blue-100">
@@ -5826,30 +5826,46 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
           >
-            <div className="p-6 text-white pb-6 shadow-lg" style={{ background: `linear-gradient(135deg, ${turmaSel.cor}, ${turmaSel.cor}dd)` }}>
-              <div className="flex items-center gap-2 mb-4">
+            <div className="pt-10 sm:pt-6 px-4 sm:px-6 pb-6 text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${turmaSel.cor}, ${turmaSel.cor}dd)` }}>
+              {/* Barra de Navegação Superior - Botão Início (Casinha) e Navegação entre Turmas */}
+              <div className="flex flex-wrap items-center justify-between gap-2.5 mb-5 pt-1">
                 <button 
                   onClick={() => setTela("home")}
-                  className="bg-white/20 hover:bg-white/30 p-1.5 rounded-full active:scale-90 transition-transform flex items-center justify-center"
-                  title="Início"
+                  className="bg-white/25 hover:bg-white/35 active:scale-95 text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 border border-white/30 shadow-xs backdrop-blur-md cursor-pointer transition-all min-h-[44px]"
+                  title="Voltar ao Início"
+                  aria-label="Voltar ao Início"
                 >
-                  <Home className="w-5 h-5" />
+                  <Home className="w-5 h-5 shrink-0 text-white" />
+                  <span className="font-extrabold text-xs">Início</span>
                 </button>
-                <div className="h-6 w-[1px] bg-white/20 mx-1" />
-                <button 
-                  onClick={navegarTurmaAnterior}
-                  className="bg-white/20 hover:bg-white/30 p-1.5 rounded-full active:scale-90 transition-transform flex items-center justify-center"
-                  title="Turma Anterior"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <button 
-                  onClick={navegarTurmaProxima}
-                  className="bg-white/20 hover:bg-white/30 p-1.5 rounded-full active:scale-90 transition-transform flex items-center justify-center"
-                  title="Próxima Turma"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
+
+                <div className="flex items-center gap-1 bg-black/25 backdrop-blur-md p-1 rounded-2xl border border-white/25 shadow-xs min-h-[44px]">
+                  <button 
+                    onClick={navegarTurmaAnterior}
+                    className="h-9 px-3 rounded-xl bg-white/20 hover:bg-white/30 active:scale-90 transition-all flex items-center justify-center gap-1.5 text-white cursor-pointer"
+                    title="Turma Anterior"
+                    aria-label="Turma Anterior"
+                  >
+                    <ChevronLeft className="w-5 h-5 shrink-0" />
+                    <span className="text-[11px] font-extrabold hidden xs:inline">Anterior</span>
+                  </button>
+                  
+                  <div className="h-4 w-[1px] bg-white/25 mx-0.5" />
+
+                  <span className="text-[11px] font-black uppercase tracking-wider px-2 text-white/90 hidden sm:inline max-w-[130px] truncate">
+                    Navegar Turmas
+                  </span>
+
+                  <button 
+                    onClick={navegarTurmaProxima}
+                    className="h-9 px-3 rounded-xl bg-white/20 hover:bg-white/30 active:scale-90 transition-all flex items-center justify-center gap-1.5 text-white cursor-pointer"
+                    title="Próxima Turma"
+                    aria-label="Próxima Turma"
+                  >
+                    <span className="text-[11px] font-extrabold hidden xs:inline">Próxima</span>
+                    <ChevronRight className="w-5 h-5 shrink-0" />
+                  </button>
+                </div>
               </div>
               <div className="uppercase tracking-widest text-3xl font-black text-red-600 mb-1 leading-none">INTEGRAL</div>
               
@@ -6235,37 +6251,53 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
             exit={{ opacity: 0, y: 20 }}
             className="pb-8"
           >
-            <div className="p-6 text-white pb-8 shadow-lg" style={{ background: `linear-gradient(135deg, ${turmaSel.cor}, ${turmaSel.cor}dd)` }}>
-              <div className="flex items-center gap-2 mb-4">
-                <button 
-                  onClick={() => setTela("home")}
-                  className="bg-white/20 hover:bg-white/30 p-1.5 rounded-full active:scale-90 transition-transform flex items-center justify-center"
-                  title="Início"
-                >
-                  <Home className="w-5 h-5" />
-                </button>
-                <button 
-                  onClick={() => setTela("turma")}
-                  className="bg-white/20 hover:bg-white/30 p-1.5 rounded-full active:scale-90 transition-transform flex items-center justify-center"
-                  title="Voltar para Turma"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <div className="h-6 w-[1px] bg-white/20 mx-1" />
-                <button 
-                  onClick={navegarAtividadeAnterior}
-                  className="bg-white/20 hover:bg-white/30 p-1.5 rounded-full active:scale-90 transition-transform flex items-center justify-center"
-                  title="Atividade Anterior"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <button 
-                  onClick={navegarAtividadeProxima}
-                  className="bg-white/20 hover:bg-white/30 p-1.5 rounded-full active:scale-90 transition-transform flex items-center justify-center"
-                  title="Próxima Atividade"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
+            <div className="pt-10 sm:pt-6 px-4 sm:px-6 pb-8 text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${turmaSel.cor}, ${turmaSel.cor}dd)` }}>
+              {/* Barra de Navegação Superior - Início, Voltar Turma e Navegação entre Atividades */}
+              <div className="flex flex-wrap items-center justify-between gap-2.5 mb-5 pt-1">
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setTela("home")}
+                    className="bg-white/25 hover:bg-white/35 active:scale-95 text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 border border-white/30 shadow-xs backdrop-blur-md cursor-pointer transition-all min-h-[44px]"
+                    title="Voltar ao Início"
+                    aria-label="Voltar ao Início"
+                  >
+                    <Home className="w-5 h-5 shrink-0 text-white" />
+                    <span className="font-extrabold text-xs hidden xs:inline">Início</span>
+                  </button>
+                  <button 
+                    onClick={() => setTela("turma")}
+                    className="bg-white/25 hover:bg-white/35 active:scale-95 text-white font-extrabold text-xs px-3 py-2.5 rounded-xl flex items-center gap-1.5 border border-white/30 shadow-xs backdrop-blur-md cursor-pointer transition-all min-h-[44px]"
+                    title="Voltar para Turma"
+                    aria-label="Voltar para Turma"
+                  >
+                    <ChevronLeft className="w-5 h-5 shrink-0 text-white" />
+                    <span className="font-extrabold text-xs">Turma</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1 bg-black/25 backdrop-blur-md p-1 rounded-2xl border border-white/25 shadow-xs min-h-[44px]">
+                  <button 
+                    onClick={navegarAtividadeAnterior}
+                    className="h-9 px-3 rounded-xl bg-white/20 hover:bg-white/30 active:scale-90 transition-all flex items-center justify-center gap-1.5 text-white cursor-pointer"
+                    title="Atividade Anterior"
+                    aria-label="Atividade Anterior"
+                  >
+                    <ChevronLeft className="w-5 h-5 shrink-0" />
+                    <span className="text-[11px] font-extrabold hidden xs:inline">Anterior</span>
+                  </button>
+                  
+                  <div className="h-4 w-[1px] bg-white/25 mx-0.5" />
+
+                  <button 
+                    onClick={navegarAtividadeProxima}
+                    className="h-9 px-3 rounded-xl bg-white/20 hover:bg-white/30 active:scale-90 transition-all flex items-center justify-center gap-1.5 text-white cursor-pointer"
+                    title="Próxima Atividade"
+                    aria-label="Próxima Atividade"
+                  >
+                    <span className="text-[11px] font-extrabold hidden xs:inline">Próxima</span>
+                    <ChevronRight className="w-5 h-5 shrink-0" />
+                  </button>
+                </div>
               </div>
               <div className="uppercase tracking-widest text-3xl font-black text-red-600 mb-1 leading-none">INTEGRAL</div>
               
@@ -6432,13 +6464,18 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
             exit={{ opacity: 0 }}
             className="pb-10"
           >
-            <div className="bg-slate-800 text-white p-6 pb-10 shadow-lg">
-              <button 
-                onClick={() => setTela("home")}
-                className="bg-white/10 hover:bg-white/20 p-1.5 rounded-full mb-4"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
+            <div className="bg-slate-800 text-white pt-10 sm:pt-6 px-4 sm:px-6 pb-10 shadow-lg">
+              <div className="mb-5 pt-1">
+                <button 
+                  onClick={() => setTela("home")}
+                  className="bg-white/25 hover:bg-white/35 active:scale-95 text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 border border-white/30 shadow-xs backdrop-blur-md cursor-pointer transition-all min-h-[44px]"
+                  title="Voltar ao Início"
+                  aria-label="Voltar ao Início"
+                >
+                  <Home className="w-5 h-5 shrink-0 text-white" />
+                  <span className="font-extrabold text-xs">Início</span>
+                </button>
+              </div>
               <div className="uppercase tracking-[0.2em] text-3xl font-black text-red-600 mb-1 leading-none">INTEGRAL</div>
               <h2 className="text-2xl font-black mb-2">Relatório do Semanário</h2>
               <div className="flex items-center justify-between mb-8">
@@ -6556,17 +6593,20 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
             className="pb-12"
           >
             {/* Header / Banner Topo */}
-            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white p-6 shadow-xl relative overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white pt-10 sm:pt-6 px-4 sm:px-6 pb-6 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
                 <ShieldCheck className="w-36 h-36 text-amber-400" />
               </div>
 
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-5 pt-1">
                 <button 
                   onClick={() => setTela("home")}
-                  className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 border border-white/10 cursor-pointer"
+                  className="bg-white/25 hover:bg-white/35 active:scale-95 text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 border border-white/30 shadow-xs backdrop-blur-md cursor-pointer transition-all min-h-[44px]"
+                  title="Voltar ao Início"
+                  aria-label="Voltar ao Início"
                 >
-                  <ChevronLeft className="w-4 h-4" /> Voltar ao Início
+                  <Home className="w-5 h-5 shrink-0 text-white" />
+                  <span className="font-extrabold text-xs">Início</span>
                 </button>
                 <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1">
                   <Shield className="w-3 h-3" /> Área Restrita Adm
