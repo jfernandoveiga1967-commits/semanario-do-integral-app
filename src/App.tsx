@@ -313,6 +313,70 @@ function obterCategoriaPura(nome: string): string {
   return cat;
 }
 
+function resolverTurmaId(rawKey: string, turmasLista: any[]): any {
+  if (!rawKey || typeof rawKey !== "string" || !Array.isArray(turmasLista)) return null;
+  const keyClean = rawKey.trim();
+  if (!keyClean) return null;
+
+  // 1. Exact match by ID
+  const matchId = turmasLista.find((t: any) => t.id === keyClean || t.id.toLowerCase() === keyClean.toLowerCase());
+  if (matchId) return matchId;
+
+  // 2. Exact match by label
+  const matchLabel = turmasLista.find((t: any) => t.label.toLowerCase() === keyClean.toLowerCase());
+  if (matchLabel) return matchLabel;
+
+  // Helper for text normalization
+  const normalizar = (str: string) => {
+    if (!str) return "";
+    return str
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // remove accents & ordinal indicators (º, ª)
+      .replace(/\bturma\b/g, "")
+      .replace(/[^a-z0-9]/g, ""); // keep only alphanumeric
+  };
+
+  const normKey = normalizar(keyClean);
+  if (!normKey) return null;
+
+  // 3. Match normalized ID or normalized Label
+  const matchNorm = turmasLista.find((t: any) => {
+    const normId = normalizar(t.id);
+    const normLbl = normalizar(t.label);
+    return normId === normKey || normLbl === normKey;
+  });
+  if (matchNorm) return matchNorm;
+
+  // 4. Match ignoring color suffixes ("azul", "vermelho") and conjunction ("e")
+  const normKeyClean = normKey.replace(/azul|vermelho/g, "").replace(/e/g, "");
+  
+  const matchFlexible = turmasLista.find((t: any) => {
+    const normIdClean = normalizar(t.id).replace(/azul|vermelho/g, "").replace(/e/g, "");
+    const normLblClean = normalizar(t.label).replace(/azul|vermelho/g, "").replace(/e/g, "");
+    return normIdClean === normKeyClean || normLblClean === normKeyClean;
+  });
+  if (matchFlexible) return matchFlexible;
+
+  // 5. Fallback inclusion matching
+  const matchPartial = turmasLista.find((t: any) => {
+    const normId = normalizar(t.id);
+    const normLbl = normalizar(t.label);
+    const normIdClean = normId.replace(/azul|vermelho/g, "");
+    const normLblClean = normLbl.replace(/azul|vermelho/g, "");
+
+    return (
+      normId.includes(normKey) ||
+      normLbl.includes(normKey) ||
+      normKey.includes(normIdClean) ||
+      normKey.includes(normLblClean) ||
+      (normKeyClean.length >= 4 && (normIdClean.includes(normKeyClean) || normLblClean.includes(normKeyClean)))
+    );
+  });
+
+  return matchPartial || null;
+}
+
 function formatarAtividadeUnica(a: any, turmaId?: string): any {
   if (!a) return a;
   let novoNome = (a.nome || "").trim();
@@ -2526,7 +2590,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       });
 
       const base64Data = await base64Promise;
-      const turmasContext = turmas.map((t: any) => `- ${t.label}: ${t.id}`).join("\n");
+      const turmasContext = turmas.map((t: any) => `- ${t.label} (ID EXATO: ${t.id})`).join("\n");
 
       const res = await fetch("/api/import-pdf", {
         method: "POST",
@@ -2536,20 +2600,63 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
       if (!res.ok) throw new Error("Erro no servidor");
       const data = await res.json();
-      const rawAtividades = data.atividades || {};
+      console.log("[PDF IMPORT DATA]", data);
+      const pdfNumeroSemana = data.numeroSemana;
+      const pdfTemaGeral = data.temaGeral;
 
-      // Limpa textos técnicos e preserva as atividades e IDs existentes dos registros lançados!
-      const semAtual = semanarios.find((x: any) => x.id === semAtualId);
-      const existentesAtvs = semAtual ? semAtual.atividades : {};
+      // Suporte ultra-flexível para qualquer estrutura JSON retornada pela IA
+      let turmasDoPdf: Array<{ rawKey: string; atividades: any[] }> = [];
+
+      if (Array.isArray(data.turmas)) {
+        turmasDoPdf = data.turmas.map((t: any) => ({
+          rawKey: t.turmaId || t.turmaNome || t.id || t.turma || t.nome || t.name || "",
+          atividades: t.atividades || t.activities || []
+        }));
+      } else if (Array.isArray(data)) {
+        turmasDoPdf = data.map((t: any) => ({
+          rawKey: t.turmaId || t.turmaNome || t.id || t.turma || t.nome || t.name || "",
+          atividades: t.atividades || t.activities || []
+        }));
+      } else if (data.atividades && typeof data.atividades === "object") {
+        if (Array.isArray(data.atividades)) {
+          turmasDoPdf = data.atividades.map((t: any) => ({
+            rawKey: t.turmaId || t.turmaNome || t.id || t.turma || t.nome || t.name || "",
+            atividades: t.atividades || t.activities || []
+          }));
+        } else {
+          turmasDoPdf = Object.keys(data.atividades).map(k => ({
+            rawKey: k,
+            atividades: data.atividades[k] || []
+          }));
+        }
+      }
+
+      const semAtual = semanarios.find((x: any) => x.id === semAtualId) || semanarios[0];
+      const activeSemId = semAtual ? semAtual.id : semAtualId;
+      const existentesAtvs = semAtual ? (semAtual.atividades || {}) : {};
 
       const novasAtividades: any = {};
-      Object.keys(rawAtividades).forEach(tId => {
+      let totalImportadasCount = 0;
+      let turmasAfetadasCount = 0;
+
+      turmasDoPdf.forEach(({ rawKey, atividades: atvsImportadas }) => {
+        if (!rawKey || !Array.isArray(atvsImportadas) || atvsImportadas.length === 0) return;
+
+        const targetTurma = resolverTurmaId(rawKey, turmas);
+        if (!targetTurma) {
+          console.warn("Turma não identificada para a chave do PDF:", rawKey);
+          return;
+        }
+
+        const tId = targetTurma.id;
+        turmasAfetadasCount++;
         const atvsExistentesTurma = existentesAtvs[tId] || [];
-        
-        novasAtividades[tId] = rawAtividades[tId].map((a: any) => {
+
+        const atvsMapeadas = atvsImportadas.map((a: any) => {
+          totalImportadasCount++;
           const catImportada = obterCategoriaPura(a.nome).toLowerCase();
-          
-          // Procurar atividade com a mesma categoria instalada para manter o ID
+
+          // Procurar atividade existente com a mesma categoria para manter o mesmo ID
           const correspondente = atvsExistentesTurma.find((ae: any) => 
             obterCategoriaPura(ae.nome).toLowerCase() === catImportada
           );
@@ -2557,7 +2664,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
           if (correspondente) {
             return formatarAtividadeUnica({
               ...a,
-              id: correspondente.id, // PRESERVA ID ORIGINAL para não quebrar lançamentos do semanário
+              id: correspondente.id, // PRESERVA ID ORIGINAL para não quebrar lançamentos de rotina do semanário
               nome: limparTextoTecnico(a.nome),
               descricao: limparTextoTecnico(a.descricao),
               adiResponsavel: correspondente.adiResponsavel || a.adiResponsavel || "",
@@ -2572,17 +2679,19 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
           }
         });
 
-        // Adiciona as atividades que existiam mas que o PDF não forneceu (para não deletar dados históricos)
-        const categoriasImportadas = novasAtividades[tId].map((a: any) => 
+        // Manter atividades pré-existentes da mesma turma que não vieram no PDF (para não perder registros históricos)
+        const categoriasImportadas = atvsMapeadas.map((a: any) => 
           obterCategoriaPura(a.nome).toLowerCase()
         );
         
         atvsExistentesTurma.forEach((ae: any) => {
           const catExistente = obterCategoriaPura(ae.nome).toLowerCase();
           if (!categoriasImportadas.includes(catExistente)) {
-            novasAtividades[tId].push(ae);
+            atvsMapeadas.push(ae);
           }
         });
+
+        novasAtividades[tId] = atvsMapeadas;
       });
 
       if (Object.keys(novasAtividades).length > 0) {
@@ -2590,13 +2699,14 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
           ...(prev || {}),
           ...novasAtividades
         }));
-        
+
         setSemanarios((prev: any) => {
-          const activeSemId = semAtualId || (prev && prev[0]?.id);
           return prev.map((s: any) => {
             if (s.id !== activeSemId) return s;
             return { 
               ...s, 
+              numero: pdfNumeroSemana ? pdfNumeroSemana : s.numero,
+              tema: pdfTemaGeral ? pdfTemaGeral : s.tema,
               atividades: {
                 ...(s.atividades || {}),
                 ...novasAtividades
@@ -2604,7 +2714,10 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
             };
           });
         });
-        toast$("Conteúdo do PDF revisado pedagogicamente e distribuído com sucesso!");
+
+        toast$(`PDF lido com sucesso! ${totalImportadasCount} atividades distribuídas entre ${turmasAfetadasCount} turmas.`);
+      } else {
+        toast$("Não foi possível mapear nenhuma turma no PDF fornecido.", "erro");
       }
     } catch (error) {
       console.error(error);
@@ -4256,7 +4369,13 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     if (user && !guestMode && isDocenteRole(userRole)) {
       a = a.filter((x: any) => podeAcessarAtividade(tId, x.nome || "", userAtribuicoes, userRole, userTurmas, userCategorias));
     }
-    const d = a.filter((x: any) => getReg(tId, x.id)).length;
+    const d = a.filter((x: any) => {
+      const temDescricao = Boolean(x.descricao && typeof x.descricao === "string" && x.descricao.trim().length > 0);
+      const partesNome = (x.nome || "").split(":");
+      const temTituloEspecifico = Boolean(x.nome && (x.nome.includes("\n") || (partesNome.length > 1 && partesNome[1].trim().length > 0)));
+      const temRegistro = Boolean(getReg(tId, x.id));
+      return temDescricao || temTituloEspecifico || temRegistro;
+    }).length;
     return { done: d, total: a.length, pct: a.length ? Math.round(d/a.length*100) : 0 };
   };
 

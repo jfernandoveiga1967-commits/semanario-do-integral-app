@@ -93,58 +93,30 @@ async function startServer() {
           },
           {
             text: `Você é um Coordenador Pedagógico e Especialista em Curadoria Educacional de Ensino Integral da Escola Crescer.
-Sua missão é realizar o MAPEAMENTO, LEITURA, REVISÃO PEDAGÓGICA E ADEQUAÇÃO COMPLETA dos planos de aula contidos neste PDF do Semanário Integral antes de sua distribuição no aplicativo.
+Sua missão é realizar a LEITURA COMPLETA, MAPEAMENTO DAS TURMAS, REVISÃO PEDAGÓGICA E DISTRIBUIÇÃO dos planos de aula contidos neste PDF do Semanário Integral.
 
-As turmas ativas e disponíveis no sistema para distribuição (com seus respectivos IDs) são:
+As turmas ativas no aplicativo com seus respectivos IDs e Nomes são:
 ${turmasContext}
 
-FLUXO OBRIGATÓRIO DE PROCESSAMENTO, CURADORIA E DISTRIBUIÇÃO:
+REGRAS DE EXTRAÇÃO E MAPEAMENTO:
 
-1. MAPEAMENTO E LEITURA DO PDF:
-   - Identifique no PDF os blocos de texto correspondentes a cada Turma e a cada Atividade/Componente Curricular (ex: Artes, Psicomotricidade, Devocional, Projetos, Musicalização, Recreação, Culinária, Jogos, Robótica, etc.).
-   - Mapeie cada turma encontrada no PDF para o ID exato da lista de turmas acima (ex: "mini-maternal-azul", "1ano-azul", etc.).
+1. CABEÇALHO DO SEMANÁRIO:
+   - Identifique o Número da Semana (ex: "SEMANA 33" -> numeroSemana: 33) e o Tema Geral (ex: "Passeio pelo lindo zoológico de Deus").
 
-2. PROCESSAMENTO, REVISÃO E CORREÇÃO DE TEXTO (ANTES DE SALVAR):
-   - Corrija rigorosamente todos os erros ortográficos, gramaticais, de digitação e de pontuação do PDF (acentos faltantes, quebras de linha indevidas, palavras cortadas ou falhas de leitura).
-   - Reescreva e adeqúe o texto para uma linguagem estritamente profissional, clara, afetuosa e perfeitamente alinhada às diretrizes pedagógicas da Educação Infantil e Ensino Fundamental.
-   - NUNCA inclua palavras ou jargões técnicos de TI/programação (como "null", "undefined", "string", "JSON", "array").
+2. MAPEAMENTO DE TURMAS NO PDF:
+   - Para cada bloco de turma identificado no PDF (ex: "TURMA: MINI E MATERNAL AZUL", "TURMA: INFANTIL 1", "TURMA: INFANTIL 2", "TURMA: 1º ANO AZUL", "TURMA: 2º ANO AZUL E VERMELHO", etc.), extraia o turmaId correspondente (ex: "mini-maternal-azul", "infantil1-azul", "infantil2-azul", "1ano-azul", "2ano-azul-vermelho", etc).
+   - ATENÇÃO A CONTINUIDADE DAS PÁGINAS: Se as atividades de uma turma continuam na página seguinte (ex: a atividade 'Psicomotricidade' no início da página 2 que vem logo antes do cabeçalho de uma nova turma), vincule essas atividades à turma que iniciou na página anterior ("mini-maternal-azul").
 
-3. COMPLEMENTAÇÃO E ESTRUTURAÇÃO PEDAGÓGICA (ENRIQUECER SE SUCINTO OU VAGO):
-   - Caso o texto vindo do PDF esteja muito vago, sucinto, incompleto ou apenas em tópicos resumidos, ENRIQUEÇA o plano da atividade com objetivos pedagógicos e metodológicos claros, práticos e adequados à faixa etária da turma.
-   - Organize obrigatoriamente a 'descricao' da atividade seguindo a estrutura padrão que o sistema já utiliza ao gerar atividades automaticamente:
+3. EXTRAÇÃO DE ATIVIDADES DE CADA TURMA:
+   - Extraia TODAS as atividades/matérias presentes para cada turma no PDF (Devocional, Artes, Psicomotricidade, Contação de História, Lego, Projetos, Musica, Estímulo Motor, etc.).
+   - Se o PDF contiver linhas de exemplo ou instruções genéricas (ex: "... (Insira as atividades da turma aqui)"), ignore-as e extraia apenas atividades reais e válidas.
 
-   A) Para Atividades Gerais (Artes, Psicomotricidade, Musicalização, Projetos, Recreação, Culinária, Robótica, etc.):
-      Proposta:
-      [Objetivo pedagógico claro focado no desenvolvimento cognitivo, motor ou social da criança]
+4. PADRONIZAÇÃO DO NOME E DESCRIÇÃO:
+   - Formate o campo 'nome' como "NomeDaCategoria: \n Título da Atividade" (ex: "Devocional: \n Passeio pelo Lindo Zoológico de Deus", "Artes: \n Sombra dos Animais", "Psicomotricidade: \n Imitando os Sons e Atitudes dos Animais").
+   - Mantenha ou organize a 'descricao' em tópicos claros (Proposta, Dinâmica, Materiais, Importante, Versículo, Atividades).
+   - Corrija ortografia, erros de pontuação e quebras de linha indevidas do PDF.
 
-      Dinâmica:
-      [Passo a passo lúdico, prático e detalhado de como a atividade será conduzida]
-
-      Materiais:
-      • [Lista de itens/materiais necessários]
-
-      Importante:
-      [Orientações de segurança, acolhimento e dicas práticas para a monitora/professor]
-
-   B) Para DEVOCIONAIS (Devocional / Ensino Religioso):
-      Proposta:
-      [Objetivo do devocional focado em valores cristãos, respeito, empatia, gratidão e amor ao próximo]
-
-      Versículo:
-      [Versículo bíblico curto, simples e apropriado para a idade]
-
-      Atividades:
-      [Roda de conversa lúdica, dinâmica de escuta, reflexão e oração breve com as crianças]
-
-      Importante:
-      [Orientações de acolhimento e escuta afetiva para a condução do momento]
-
-4. PADRONIZAÇÃO DO CAMPO "NOME":
-   - O campo "nome" deve ser formatado como "NomeDaCategoria: \n Título Específico Lúdico".
-     Exemplos: "Artes: \n Mosaico de Folhas Secas", "Devocional: \n O Cuidado de Deus", "Psicomotricidade: \n Circuito do Equilíbrio".
-   - O título deve estar em formato normal de sentença (primeira letra maiúscula), NUNCA em CAIXA ALTA total.
-
-Retorne obrigatoriamente um JSON estrito com a propriedade "atividades", onde as chaves são os IDs das turmas e os valores são arrays de objetos de atividades com id, nome e descricao.`,
+Retorne obrigatoriamente um objeto JSON com o array 'turmas'.`,
           },
         ],
         config: {
@@ -152,28 +124,44 @@ Retorne obrigatoriamente um JSON estrito com a propriedade "atividades", onde as
           responseSchema: {
             type: Type.OBJECT,
             properties: {
-              atividades: {
-                type: Type.OBJECT,
-                additionalProperties: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      id: { type: Type.STRING },
-                      nome: { type: Type.STRING },
-                      descricao: { type: Type.STRING }
-                    },
-                    required: ["id", "nome", "descricao"]
-                  }
+              numeroSemana: { type: Type.INTEGER },
+              temaGeral: { type: Type.STRING },
+              turmas: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    turmaId: { type: Type.STRING, description: "ID exato da turma cadastrada (ex: mini-maternal-azul, infantil1-azul, 1ano-azul)" },
+                    turmaNome: { type: Type.STRING, description: "Nome legível da turma no PDF" },
+                    atividades: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          id: { type: Type.STRING },
+                          nome: { type: Type.STRING },
+                          descricao: { type: Type.STRING }
+                        },
+                        required: ["id", "nome", "descricao"]
+                      }
+                    }
+                  },
+                  required: ["turmaId", "atividades"]
                 }
               }
             },
-            required: ["atividades"]
+            required: ["turmas"]
           }
         },
       });
 
-      res.json(JSON.parse(response.text || "{}"));
+      const cleanedText = (response.text || "{}")
+        .replace(/^```json\s*/i, "")
+        .replace(/^```\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+      const parsedData = JSON.parse(cleanedText);
+      res.json(parsedData);
     } catch (error: any) {
       console.error("Erro na importação PDF com IA:", error);
       res.status(500).json({ error: error.message });
