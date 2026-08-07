@@ -1284,7 +1284,8 @@ export default function App() {
     _setTurmas((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
       if (user && !guestMode && !isSyncingFromCloud.current) {
-        setDoc(doc(db, "config", "turmas"), { data: next }).catch(e => console.error("Erro ao salvar turmas:", e));
+        const cleaned = JSON.parse(JSON.stringify(next));
+        setDoc(doc(db, "config", "turmas"), { data: cleaned }).catch(e => console.error("Erro ao salvar turmas:", e));
       }
       return next;
     });
@@ -1294,7 +1295,8 @@ export default function App() {
     _setAtividadesPadrao((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
       if (user && !guestMode && !isSyncingFromCloud.current) {
-        setDoc(doc(db, "config", "atividades_padrao"), { data: next }).catch(e => console.error("Erro ao salvar atividades padrão:", e));
+        const cleaned = JSON.parse(JSON.stringify(next));
+        setDoc(doc(db, "config", "atividades_padrao"), { data: cleaned }).catch(e => console.error("Erro ao salvar atividades padrão:", e));
       }
       return next;
     });
@@ -1388,7 +1390,8 @@ export default function App() {
       const prevVal = prev[k];
       const nextVal = next[k];
       if (!prevVal || JSON.stringify(prevVal) !== JSON.stringify(nextVal)) {
-        setDoc(doc(db, "registros", k), nextVal).catch(e => console.error("Erro ao salvar registro:", e));
+        const cleanedVal = JSON.parse(JSON.stringify(nextVal));
+        setDoc(doc(db, "registros", k), cleanedVal).catch(e => console.error("Erro ao salvar registro:", e));
       }
     });
 
@@ -1408,7 +1411,8 @@ export default function App() {
       const prevVal = prev[k];
       const nextVal = next[k];
       if (!prevVal || JSON.stringify(prevVal) !== JSON.stringify(nextVal)) {
-        setDoc(doc(db, "midias", k), { items: nextVal }).catch(e => console.error("Erro ao salvar mídia:", e));
+        const cleanedVal = JSON.parse(JSON.stringify(nextVal));
+        setDoc(doc(db, "midias", k), { items: cleanedVal }).catch(e => console.error("Erro ao salvar mídia:", e));
       }
     });
 
@@ -2860,6 +2864,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
   // Migração de nomes de atividades salvos no LocalStorage
   useEffect(() => {
+    if (!isLocalMode()) return;
     const keysToMigrate: { de: string; para: string }[] = [];
 
     const migrarNomes = (atvs: any[], tId?: string, semId?: string) => {
@@ -3863,6 +3868,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   };
 
   useEffect(() => {
+    if (!isLocalMode()) return;
     const tem6ano = turmas.some((t: any) => t.id === "6ano-azul");
     if (!tem6ano) {
       recuperar6ano();
