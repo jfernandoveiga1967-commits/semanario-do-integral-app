@@ -1283,7 +1283,7 @@ export default function App() {
   const setTurmas = (val: any) => {
     _setTurmas((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user && !guestMode) {
+      if (user && !guestMode && !isSyncingFromCloud.current) {
         setDoc(doc(db, "config", "turmas"), { data: next }).catch(e => console.error("Erro ao salvar turmas:", e));
       }
       return next;
@@ -1293,7 +1293,7 @@ export default function App() {
   const setAtividadesPadrao = (val: any) => {
     _setAtividadesPadrao((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user && !guestMode) {
+      if (user && !guestMode && !isSyncingFromCloud.current) {
         setDoc(doc(db, "config", "atividades_padrao"), { data: next }).catch(e => console.error("Erro ao salvar atividades padrão:", e));
       }
       return next;
@@ -1328,7 +1328,7 @@ export default function App() {
         });
         next = ordenarSemanarios(next);
       }
-      if (user && !guestMode) {
+      if (user && !guestMode && !isSyncingFromCloud.current) {
         syncSemanariosDifference(prev, next);
       }
       return next;
@@ -1338,7 +1338,7 @@ export default function App() {
   const setRegistros = (val: any) => {
     _setRegistros((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user && !guestMode) {
+      if (user && !guestMode && !isSyncingFromCloud.current) {
         syncRegistrosDifference(prev, next);
       }
       return next;
@@ -1348,18 +1348,19 @@ export default function App() {
   const setMidias = (val: any) => {
     _setMidias((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user && !guestMode) {
+      if (user && !guestMode && !isSyncingFromCloud.current) {
         syncMidiasDifference(prev, next);
       }
       return next;
     });
   };
 
-  // Helper sync logic
+  // Helper sync logic - optimized to write only modified week documents
   const syncSemanariosDifference = (prev: any[], next: any[]) => {
+    if (isSyncingFromCloud.current) return;
     if (JSON.stringify(prev) === JSON.stringify(next)) return;
-    const prevMap = new Map(prev.map(s => [s.id, s]));
-    const nextMap = new Map(next.map(s => [s.id, s]));
+    const prevMap = new Map((prev || []).map(s => [s.id, s]));
+    const nextMap = new Map((next || []).map(s => [s.id, s]));
 
     next.forEach(sem => {
       const prevSem = prevMap.get(sem.id);
@@ -1367,64 +1368,13 @@ export default function App() {
         // Save semanario document safely stripping undefined values
         const cleanedSem = JSON.parse(JSON.stringify(sem));
         setDoc(doc(db, "semanarios", sem.id), cleanedSem).catch(e => console.error("Erro ao salvar semanário:", e));
-
-        // Sync to flat activities database for advanced searching and querying
-        if (sem.atividades) {
-          Object.keys(sem.atividades).forEach(turmaId => {
-            const arr = sem.atividades[turmaId] || [];
-            arr.forEach((activity: any) => {
-              const flatId = `${sem.id}||${turmaId}||${activity.id}`;
-              setDoc(doc(db, "atividades_db", flatId), {
-                id: activity.id || "",
-                semanarioId: sem.id || "",
-                semanarioNumero: sem.numero || 0,
-                periodo: sem.periodo || "",
-                turmaId: turmaId || "",
-                turmaNome: turmas.find((t: any) => t.id === turmaId)?.label || turmaId || "",
-                nome: activity.nome || "",
-                titulo: obterTituloPuro(activity.nome) || "",
-                categoria: obterCategoriaPura(activity.nome) || "",
-                descricao: activity.descricao || "",
-                adiResponsavel: activity.adiResponsavel || "",
-                monitoras: activity.monitoras || "",
-                aiGenerated: Boolean(activity.aiGenerated),
-                aiGenerationCount: activity.aiGenerationCount || 0,
-                criadoPorEmail: (!guestMode && user?.email) ? (activity.criadoPorEmail && activity.criadoPorEmail !== "Local" ? activity.criadoPorEmail : user.email) : (activity.criadoPorEmail || "Local"),
-                atualizadoEm: new Date().toISOString()
-              }).catch(e => console.error("Erro ao indexar atividade:", e));
-            });
-            
-            // Clean up any activities that were removed from this turma in this week
-            if (prevSem && prevSem.atividades && prevSem.atividades[turmaId]) {
-              const prevArr = prevSem.atividades[turmaId] || [];
-              const nextIds = new Set(arr.map((a: any) => a.id));
-              prevArr.forEach((prevAtv: any) => {
-                if (!nextIds.has(prevAtv.id)) {
-                  const flatId = `${sem.id}||${turmaId}||${prevAtv.id}`;
-                  deleteDoc(doc(db, "atividades_db", flatId)).catch(e => console.error("Erro ao deletar atividade flat:", e));
-                }
-              });
-            }
-          });
-        }
       }
     });
 
-    prev.forEach(sem => {
+    (prev || []).forEach(sem => {
       if (!nextMap.has(sem.id)) {
         // Delete semanario document
         deleteDoc(doc(db, "semanarios", sem.id)).catch(e => console.error("Erro ao deletar semanário:", e));
-
-        // Delete flat activities associated with this semanario
-        if (sem.atividades) {
-          Object.keys(sem.atividades).forEach(turmaId => {
-            const arr = sem.atividades[turmaId] || [];
-            arr.forEach((activity: any) => {
-              const flatId = `${sem.id}||${turmaId}||${activity.id}`;
-              deleteDoc(doc(db, "atividades_db", flatId)).catch(e => console.error("Erro ao deletar atividade flat:", e));
-            });
-          });
-        }
       }
     });
   };
@@ -3401,8 +3351,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   };
 
   const carregarAtividadesPesquisa = async () => {
-    if (!user || guestMode) {
-      // offline/local mode: build from local semanarios list
+    if (semanarios && semanarios.length > 0) {
       const list: any[] = [];
       semanarios.forEach(sem => {
         if (sem.atividades) {
@@ -3433,12 +3382,40 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       return;
     }
 
+    if (!user || guestMode) {
+      setAtividadesPesquisa([]);
+      return;
+    }
+
     setCarregandoPesquisa(true);
     try {
-      const snap = await getDocs(collection(db, "atividades_db"));
+      const snap = await getDocs(collection(db, "semanarios"));
       const list: any[] = [];
       snap.forEach(d => {
-        list.push(d.data());
+        const sem = d.data();
+        if (sem.atividades) {
+          Object.keys(sem.atividades).forEach(turmaId => {
+            const arr = sem.atividades[turmaId] || [];
+            arr.forEach((activity: any) => {
+              list.push({
+                id: activity.id,
+                semanarioId: sem.id,
+                semanarioNumero: sem.numero || 0,
+                periodo: sem.periodo || "",
+                turmaId: turmaId,
+                turmaNome: turmas.find((t: any) => t.id === turmaId)?.label || turmaId,
+                nome: activity.nome || "",
+                titulo: obterTituloPuro(activity.nome),
+                categoria: obterCategoriaPura(activity.nome),
+                descricao: activity.descricao || "",
+                adiResponsavel: activity.adiResponsavel || "",
+                monitoras: activity.monitoras || "",
+                criadoPorEmail: activity.criadoPorEmail || "Local",
+                atualizadoEm: ""
+              });
+            });
+          });
+        }
       });
       setAtividadesPesquisa(list);
     } catch (err) {
@@ -3896,6 +3873,107 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     }
   }, []);
 
+  const renderHeaderPDF = (doc: any, sem: any, margin: number): number => {
+    let y = 20;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(220, 38, 38); // Red-600
+    doc.text("INTEGRAL", margin, y);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(13);
+    doc.setTextColor(71, 85, 105); // Slate-600
+    doc.text("Semanário de Atividades", margin + 45, y);
+    
+    y += 9;
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59);
+    doc.text(`Semana: ${sem.numero} | Período: ${sem.periodo}`, margin, y);
+    
+    y += 5;
+    doc.setDrawColor(203, 213, 225); // Slate-300
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, 196, y);
+    return y + 12;
+  };
+
+  const renderMarcaDaguaEPaginacao = (doc: any, sem: any) => {
+    const pageCount = doc.getNumberOfPages();
+    const centerX = 105;
+    const centerY = 148;
+
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+
+      // 1. Marca d'Água Sutil e Elegante no Fundo (Opacidade ~0.08 e Tom Cinza Sutil)
+      try {
+        if ((doc as any).GState) {
+          doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
+        }
+      } catch (e) {}
+
+      doc.setDrawColor(218, 225, 235);
+      doc.setTextColor(218, 225, 235);
+
+      // Selo Circular
+      doc.setLineWidth(0.7);
+      doc.circle(centerX, centerY, 52, 'S');
+      doc.setLineWidth(0.3);
+      doc.circle(centerX, centerY, 48, 'S');
+      doc.circle(centerX, centerY, 55, 'S');
+
+      // Vetores de Ícones/Símbolos das Categorias Pedagógicas ao redor do Selo
+      // 1. Livro (Leitura / História 📖)
+      doc.rect(centerX - 6, centerY - 43, 5, 7);
+      doc.rect(centerX + 1, centerY - 43, 5, 7);
+      
+      // 2. Lápis / Escrita (✏️)
+      doc.line(centerX + 32, centerY - 25, centerX + 38, centerY - 19);
+      doc.line(centerX + 31, centerY - 24, centerX + 37, centerY - 18);
+
+      // 3. Música / Som (🎵)
+      doc.circle(centerX + 35, centerY + 25, 3, 'S');
+      doc.line(centerX + 38, centerY + 25, centerX + 38, centerY + 16);
+
+      // 4. Lego / Raciocínio Lógico (⚙️ / 🧩)
+      doc.rect(centerX - 4, centerY + 38, 8, 8);
+      doc.circle(centerX, centerY + 42, 2, 'S');
+
+      // 5. Artes / Expressão Plástica (🎨)
+      doc.circle(centerX - 35, centerY + 24, 4, 'S');
+
+      // 6. Estrela / Estímulo Motor / Brincadeiras (⭐️)
+      doc.line(centerX - 35, centerY - 25, centerX - 31, centerY - 21);
+      doc.line(centerX - 31, centerY - 25, centerX - 35, centerY - 21);
+
+      // Texto da Marca d'Água Central
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(21);
+      doc.text("SEMANÁRIO INTEGRAL", centerX, centerY - 7, { align: "center" });
+
+      doc.setFontSize(8.5);
+      doc.text("• APRENDIZADO  •  ESTÍMULO  •  DESENVOLVIMENTO •", centerX, centerY + 3, { align: "center" });
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("DOCUMENTO PEDAGÓGICO OFICIAL", centerX, centerY + 11, { align: "center" });
+
+      // Restaurar Opacidade Normal (1.0) para os textos e rodapé
+      try {
+        if ((doc as any).GState) {
+          doc.setGState(new (doc as any).GState({ opacity: 1.0 }));
+        }
+      } catch (e) {}
+
+      // 2. Rodapé com Numeração e Identificação
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139); // Slate-500
+      doc.text(`Semanário Integral - Semana ${sem.numero} (${sem.periodo})`, 14, 287);
+      doc.text(`Página ${i} de ${pageCount}`, 196, 287, { align: "right" });
+    }
+  };
+
   const baixarAtividades = async (listaTurmas: any[] | any) => {
     const turmas = Array.isArray(listaTurmas) ? listaTurmas : [listaTurmas];
     
@@ -3908,36 +3986,26 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
     const doc = new jsPDF();
     const margin = 14;
-    let y = 20;
+    let y = renderHeaderPDF(doc, sem, margin);
 
-    // Header
-    doc.setFontSize(24);
-    doc.setTextColor(220, 38, 38); // Red-600
-    doc.text("INTEGRAL", margin, y);
-    
-    doc.setFontSize(14);
-    doc.setTextColor(71, 85, 105); // Slate-600
-    doc.text("Semanário de Atividades", margin + 45, y);
-    
-    y += 10;
-    doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59);
-    doc.text(`Semana: ${sem.numero} | Período: ${sem.periodo}`, margin, y);
-    
-    y += 5;
-    doc.setDrawColor(203, 213, 225); // Slate-300
-    doc.line(margin, y, 196, y);
-    y += 15;
+    let isFirstTurma = true;
 
     for (const t of turmas) {
       const atvs = [...(ATIVIDADES[t.id] || [])].sort((a: any, b: any) => a.nome.localeCompare(b.nome));
       if (atvs.length === 0) continue;
 
+      // Force Page Break per Class (Requirement 1)
+      if (!isFirstTurma) {
+        doc.addPage();
+        y = renderHeaderPDF(doc, sem, margin);
+      } else {
+        isFirstTurma = false;
+      }
+
       // Class Name
-      if (y > 250) { doc.addPage(); y = 20; }
-      
       doc.setFontSize(16);
       doc.setTextColor(t.cor);
+      doc.setFont("helvetica", "bold");
       doc.text(t.label.toUpperCase(), margin, y);
       y += 2;
       doc.setDrawColor(t.cor);
@@ -3961,8 +4029,11 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
         const k = chave(t.id, a.id);
         const fotos = (midias[k] || []).filter((m: any) => m.tipo === "imagem");
 
-        // Activity Check - lowered the threshold to 230 to prevent orphans with larger fonts
-        if (y > 230) { doc.addPage(); y = 20; }
+        // Activity Page Check
+        if (y > 230) {
+          doc.addPage();
+          y = renderHeaderPDF(doc, sem, margin);
+        }
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(13);
@@ -3982,7 +4053,6 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
         }
         y += 1;
 
-        // High-contrast, highly legible description body text with uniform font size and paragraph breaks
         y = renderDescricaoNoPdf(doc, a.descricao, margin, y) + 2;
 
         const status = reg ? STATUS_CONFIG[reg.status] : STATUS_CONFIG.pendente;
@@ -4049,7 +4119,10 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
             if (xFoto + fotoSize > 190) {
               xFoto = margin;
               y += fotoSize + 5;
-              if (y > 240) { doc.addPage(); y = 20; }
+              if (y > 240) {
+                doc.addPage();
+                y = renderHeaderPDF(doc, sem, margin);
+              }
             }
             try {
               doc.addImage(f.src, 'JPEG', xFoto, y, fotoSize, fotoSize);
@@ -4068,14 +4141,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       y += 10; // Padding between classes
     }
 
-    const pageCount = doc.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(100, 116, 139); // Slate-500
-      doc.text(`${i}/${pageCount}`, 196, 287, { align: "right" });
-    }
+    renderMarcaDaguaEPaginacao(doc, sem);
 
     doc.save(`atividades_S${sem.numero}_${turmas.length === 1 ? turmas[0].id : 'global'}.pdf`);
     toast$("PDF pronto!");
@@ -4086,30 +4152,12 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
     const doc = new jsPDF();
     const margin = 14;
-    let y = 20;
-
-    // Header
-    doc.setFontSize(24);
-    doc.setTextColor(220, 38, 38); // Red-600
-    doc.text("INTEGRAL", margin, y);
-    
-    doc.setFontSize(14);
-    doc.setTextColor(71, 85, 105); // Slate-600
-    doc.text("Semanário de Atividades", margin + 45, y);
-    
-    y += 10;
-    doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59);
-    doc.text(`Semana: ${sem.numero} | Período: ${sem.periodo}`, margin, y);
-    
-    y += 5;
-    doc.setDrawColor(203, 213, 225); // Slate-300
-    doc.line(margin, y, 196, y);
-    y += 15;
+    let y = renderHeaderPDF(doc, sem, margin);
 
     // Class Name
     doc.setFontSize(16);
     doc.setTextColor(t.cor);
+    doc.setFont("helvetica", "bold");
     doc.text(t.label.toUpperCase(), margin, y);
     y += 2;
     doc.setDrawColor(t.cor);
@@ -4150,7 +4198,6 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     }
     y += 1;
 
-    // High contrast, legible main description with uniform font size and paragraph breaks
     y = renderDescricaoNoPdf(doc, a.descricao || "", margin, y) + 2;
 
     const status = reg ? STATUS_CONFIG[reg.status] : STATUS_CONFIG.pendente;
@@ -4161,7 +4208,6 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     doc.setFont("helvetica", "normal");
     y += 7;
 
-    // Add execution details if they exist with dark, readable styling
     if (reg?.status === "realizada" && reg.justificativa) {
       doc.setFontSize(10.5);
       doc.setTextColor(15, 23, 42); // slate-900
@@ -4217,7 +4263,10 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
         if (xFoto + fotoSize > 190) {
           xFoto = margin;
           y += fotoSize + 5;
-          if (y > 240) { doc.addPage(); y = 20; }
+          if (y > 240) {
+            doc.addPage();
+            y = renderHeaderPDF(doc, sem, margin);
+          }
         }
         try {
           doc.addImage(f.src, 'JPEG', xFoto, y, fotoSize, fotoSize);
@@ -4229,14 +4278,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       y += fotoSize + 10;
     }
 
-    const pageCount = doc.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
-      doc.setTextColor(100, 116, 139); // Slate-500
-      doc.text(`${i}/${pageCount}`, 196, 287, { align: "right" });
-    }
+    renderMarcaDaguaEPaginacao(doc, sem);
 
     const cleanTitle = a.nome.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 30);
     doc.save(`atividade_S${sem.numero}_${t.id}_${cleanTitle}.pdf`);
@@ -4456,15 +4498,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       }
     }
 
-    // Page Numbers
-    const pageCount = doc.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`${i}/${pageCount}`, 196, 287, { align: "right" });
-    }
+    renderMarcaDaguaEPaginacao(doc, sem);
 
     const cleanName = grupo.nome.toLowerCase().replace(/[^a-z0-9]/g, "_");
     doc.save(`atividades_unificadas_${cleanName}_S${sem.numero}.pdf`);
