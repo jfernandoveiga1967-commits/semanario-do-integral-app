@@ -1835,24 +1835,40 @@ export default function App() {
   };
 
   const navegarTurmaAnterior = () => {
-    if (!turmaSel) return;
     const lista = ordenarTurmas(turmasVisiveis);
     if (lista.length === 0) return;
+    if (!turmaSel) {
+      setTurmaSel(lista[lista.length - 1]);
+      setTela("turma");
+      return;
+    }
     const idx = lista.findIndex((t: any) => t.id === turmaSel.id);
     if (idx !== -1) {
       const prevIdx = (idx - 1 + lista.length) % lista.length;
       setTurmaSel(lista[prevIdx]);
+      if (tela !== "turma") setTela("turma");
+    } else {
+      setTurmaSel(lista[0]);
+      if (tela !== "turma") setTela("turma");
     }
   };
 
   const navegarTurmaProxima = () => {
-    if (!turmaSel) return;
     const lista = ordenarTurmas(turmasVisiveis);
     if (lista.length === 0) return;
+    if (!turmaSel) {
+      setTurmaSel(lista[0]);
+      setTela("turma");
+      return;
+    }
     const idx = lista.findIndex((t: any) => t.id === turmaSel.id);
     if (idx !== -1) {
       const nextIdx = (idx + 1) % lista.length;
       setTurmaSel(lista[nextIdx]);
+      if (tela !== "turma") setTela("turma");
+    } else {
+      setTurmaSel(lista[0]);
+      if (tela !== "turma") setTela("turma");
     }
   };
 
@@ -5771,6 +5787,34 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                     </div>
                   )}
                 </div>
+
+                <div className="mt-2 pt-2 border-t border-white/20 flex items-center justify-between">
+                  <div className="flex items-center gap-1 bg-black/25 backdrop-blur-md p-1 rounded-2xl border border-white/25 shadow-xs w-full justify-between">
+                    <button 
+                      onClick={navegarTurmaAnterior}
+                      className="h-9 px-3.5 rounded-xl bg-white/20 hover:bg-white/30 active:scale-90 transition-all flex items-center justify-center gap-1.5 text-white cursor-pointer"
+                      title="Turma Anterior"
+                      aria-label="Turma Anterior"
+                    >
+                      <ChevronLeft className="w-5 h-5 shrink-0" />
+                      <span className="text-[11px] font-extrabold">Anterior</span>
+                    </button>
+                    
+                    <span className="text-[11px] font-black uppercase tracking-wider px-2 text-white/95 truncate">
+                      Navegar Turmas
+                    </span>
+
+                    <button 
+                      onClick={navegarTurmaProxima}
+                      className="h-9 px-3.5 rounded-xl bg-white/20 hover:bg-white/30 active:scale-90 transition-all flex items-center justify-center gap-1.5 text-white cursor-pointer"
+                      title="Próxima Turma"
+                      aria-label="Próxima Turma"
+                    >
+                      <span className="text-[11px] font-extrabold">Próxima</span>
+                      <ChevronRight className="w-5 h-5 shrink-0" />
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-5 gap-2 pt-2">
@@ -5981,8 +6025,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
             exit={{ opacity: 0, x: 20 }}
           >
             <div className="pt-10 sm:pt-6 px-4 sm:px-6 pb-6 text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${turmaSel.cor}, ${turmaSel.cor}dd)` }}>
-              {/* Barra de Navegação Superior - Botão Início (Casinha) e Navegação entre Turmas */}
-              <div className="flex flex-wrap items-center justify-between gap-2.5 mb-5 pt-1">
+              {/* Barra de Navegação Superior - Botão Início (Casinha) */}
+              <div className="flex items-center justify-between gap-2.5 mb-4 pt-1">
                 <button 
                   onClick={() => setTela("home")}
                   className="bg-white/25 hover:bg-white/35 active:scale-95 text-white font-extrabold text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2 border border-white/30 shadow-xs backdrop-blur-md cursor-pointer transition-all min-h-[44px]"
@@ -5992,34 +6036,6 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                   <Home className="w-5 h-5 shrink-0 text-white" />
                   <span className="font-extrabold text-xs">Início</span>
                 </button>
-
-                <div className="flex items-center gap-1 bg-black/25 backdrop-blur-md p-1 rounded-2xl border border-white/25 shadow-xs min-h-[44px]">
-                  <button 
-                    onClick={navegarTurmaAnterior}
-                    className="h-9 px-3 rounded-xl bg-white/20 hover:bg-white/30 active:scale-90 transition-all flex items-center justify-center gap-1.5 text-white cursor-pointer"
-                    title="Turma Anterior"
-                    aria-label="Turma Anterior"
-                  >
-                    <ChevronLeft className="w-5 h-5 shrink-0" />
-                    <span className="text-[11px] font-extrabold hidden xs:inline">Anterior</span>
-                  </button>
-                  
-                  <div className="h-4 w-[1px] bg-white/25 mx-0.5" />
-
-                  <span className="text-[11px] font-black uppercase tracking-wider px-2 text-white/90 hidden sm:inline max-w-[130px] truncate">
-                    Navegar Turmas
-                  </span>
-
-                  <button 
-                    onClick={navegarTurmaProxima}
-                    className="h-9 px-3 rounded-xl bg-white/20 hover:bg-white/30 active:scale-90 transition-all flex items-center justify-center gap-1.5 text-white cursor-pointer"
-                    title="Próxima Turma"
-                    aria-label="Próxima Turma"
-                  >
-                    <span className="text-[11px] font-extrabold hidden xs:inline">Próxima</span>
-                    <ChevronRight className="w-5 h-5 shrink-0" />
-                  </button>
-                </div>
               </div>
               <div className="uppercase tracking-widest text-3xl font-black text-red-600 mb-1 leading-none">INTEGRAL</div>
               
@@ -6034,9 +6050,38 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                 </button>
               </div>
 
-              <div className="flex items-center gap-2 text-white/90 text-[13px] font-bold mb-4">
+              <div className="flex items-center gap-2 text-white/90 text-[13px] font-bold mb-3">
                 <Calendar className="w-4 h-4 text-white" />
                 <span>Data: {sem.periodo} - Semana {sem.numero}</span>
+              </div>
+
+              {/* Botão Navegar Turmas posicionado abaixo da linha da Data - Semana */}
+              <div className="mb-4 pt-2 border-t border-white/20">
+                <div className="flex items-center gap-1 bg-black/25 backdrop-blur-md p-1 rounded-2xl border border-white/25 shadow-xs w-full justify-between">
+                  <button 
+                    onClick={navegarTurmaAnterior}
+                    className="h-9 px-3.5 rounded-xl bg-white/20 hover:bg-white/30 active:scale-90 transition-all flex items-center justify-center gap-1.5 text-white cursor-pointer"
+                    title="Turma Anterior"
+                    aria-label="Turma Anterior"
+                  >
+                    <ChevronLeft className="w-5 h-5 shrink-0" />
+                    <span className="text-[11px] font-extrabold">Anterior</span>
+                  </button>
+                  
+                  <span className="text-[11px] font-black uppercase tracking-wider px-2 text-white/95 truncate">
+                    Navegar Turmas
+                  </span>
+
+                  <button 
+                    onClick={navegarTurmaProxima}
+                    className="h-9 px-3.5 rounded-xl bg-white/20 hover:bg-white/30 active:scale-90 transition-all flex items-center justify-center gap-1.5 text-white cursor-pointer"
+                    title="Próxima Turma"
+                    aria-label="Próxima Turma"
+                  >
+                    <span className="text-[11px] font-extrabold">Próxima</span>
+                    <ChevronRight className="w-5 h-5 shrink-0" />
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-col gap-1 mb-4 bg-white/10 p-2.5 rounded-lg border border-white/10 backdrop-blur-sm">
