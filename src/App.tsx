@@ -1283,7 +1283,8 @@ export default function App() {
   const setTurmas = (val: any) => {
     _setTurmas((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user && !guestMode && !isSyncingFromCloud.current) {
+      const currentUser = auth.currentUser;
+      if ((currentUser || user) && !guestMode) {
         const cleaned = JSON.parse(JSON.stringify(next));
         setDoc(doc(db, "config", "turmas"), { data: cleaned }).catch(e => console.error("Erro ao salvar turmas:", e));
       }
@@ -1294,7 +1295,8 @@ export default function App() {
   const setAtividadesPadrao = (val: any) => {
     _setAtividadesPadrao((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user && !guestMode && !isSyncingFromCloud.current) {
+      const currentUser = auth.currentUser;
+      if ((currentUser || user) && !guestMode) {
         const cleaned = JSON.parse(JSON.stringify(next));
         setDoc(doc(db, "config", "atividades_padrao"), { data: cleaned }).catch(e => console.error("Erro ao salvar atividades padrão:", e));
       }
@@ -1305,6 +1307,8 @@ export default function App() {
   const setSemanarios = (val: any) => {
     _setSemanarios((prev: any) => {
       let next = typeof val === "function" ? val(prev) : val;
+      const currentUser = auth.currentUser;
+      const activeUserEmail = currentUser?.email || user?.email;
       if (Array.isArray(next)) {
         next = next.map((s: any) => {
           if (!s.atividades) return s;
@@ -1313,11 +1317,11 @@ export default function App() {
           Object.keys(updatedAtividades).forEach((turmaId) => {
             const arr = updatedAtividades[turmaId] || [];
             const updatedArr = arr.map((activity: any) => {
-              if ((!activity.criadoPorEmail || activity.criadoPorEmail === "Local") && user?.email) {
+              if ((!activity.criadoPorEmail || activity.criadoPorEmail === "Local") && activeUserEmail) {
                 changed = true;
                 return {
                   ...activity,
-                  criadoPorEmail: user.email
+                  criadoPorEmail: activeUserEmail
                 };
               }
               return activity;
@@ -1330,7 +1334,7 @@ export default function App() {
         });
         next = ordenarSemanarios(next);
       }
-      if (user && !guestMode && !isSyncingFromCloud.current) {
+      if ((currentUser || user) && !guestMode) {
         syncSemanariosDifference(prev, next);
       }
       return next;
@@ -1340,7 +1344,8 @@ export default function App() {
   const setRegistros = (val: any) => {
     _setRegistros((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user && !guestMode && !isSyncingFromCloud.current) {
+      const currentUser = auth.currentUser;
+      if ((currentUser || user) && !guestMode) {
         syncRegistrosDifference(prev, next);
       }
       return next;
@@ -1350,7 +1355,8 @@ export default function App() {
   const setMidias = (val: any) => {
     _setMidias((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
-      if (user && !guestMode && !isSyncingFromCloud.current) {
+      const currentUser = auth.currentUser;
+      if ((currentUser || user) && !guestMode) {
         syncMidiasDifference(prev, next);
       }
       return next;
@@ -1359,7 +1365,6 @@ export default function App() {
 
   // Helper sync logic - optimized to write only modified week documents
   const syncSemanariosDifference = (prev: any[], next: any[]) => {
-    if (isSyncingFromCloud.current) return;
     if (JSON.stringify(prev) === JSON.stringify(next)) return;
     const prevMap = new Map((prev || []).map(s => [s.id, s]));
     const nextMap = new Map((next || []).map(s => [s.id, s]));
