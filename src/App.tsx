@@ -2969,7 +2969,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
         }
       }
 
-      const novas = listaAtvs
+      let novas = listaAtvs
         .filter(a => {
           // Remove Motoca do Infantil 1 e 2
           if ((tId === "infantil1-azul" || tId === "infantil2-azul") && a.nome?.startsWith("Motoca")) {
