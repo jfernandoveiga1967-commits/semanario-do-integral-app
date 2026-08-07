@@ -1284,7 +1284,7 @@ export default function App() {
     _setTurmas((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
       const currentUser = auth.currentUser;
-      if ((currentUser || user) && !guestMode) {
+      if ((currentUser || user) && !guestMode && !isSyncingFromCloud.current) {
         const cleaned = JSON.parse(JSON.stringify(next));
         setDoc(doc(db, "config", "turmas"), { data: cleaned }).catch(e => console.error("Erro ao salvar turmas:", e));
       }
@@ -1296,7 +1296,7 @@ export default function App() {
     _setAtividadesPadrao((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
       const currentUser = auth.currentUser;
-      if ((currentUser || user) && !guestMode) {
+      if ((currentUser || user) && !guestMode && !isSyncingFromCloud.current) {
         const cleaned = JSON.parse(JSON.stringify(next));
         setDoc(doc(db, "config", "atividades_padrao"), { data: cleaned }).catch(e => console.error("Erro ao salvar atividades padrão:", e));
       }
@@ -1308,33 +1308,10 @@ export default function App() {
     _setSemanarios((prev: any) => {
       let next = typeof val === "function" ? val(prev) : val;
       const currentUser = auth.currentUser;
-      const activeUserEmail = currentUser?.email || user?.email;
       if (Array.isArray(next)) {
-        next = next.map((s: any) => {
-          if (!s.atividades) return s;
-          const updatedAtividades = { ...s.atividades };
-          let changed = false;
-          Object.keys(updatedAtividades).forEach((turmaId) => {
-            const arr = updatedAtividades[turmaId] || [];
-            const updatedArr = arr.map((activity: any) => {
-              if ((!activity.criadoPorEmail || activity.criadoPorEmail === "Local") && activeUserEmail) {
-                changed = true;
-                return {
-                  ...activity,
-                  criadoPorEmail: activeUserEmail
-                };
-              }
-              return activity;
-            });
-            if (changed) {
-              updatedAtividades[turmaId] = updatedArr;
-            }
-          });
-          return { ...s, atividades: updatedAtividades };
-        });
         next = ordenarSemanarios(next);
       }
-      if ((currentUser || user) && !guestMode) {
+      if ((currentUser || user) && !guestMode && !isSyncingFromCloud.current) {
         syncSemanariosDifference(prev, next);
       }
       return next;
@@ -1345,7 +1322,7 @@ export default function App() {
     _setRegistros((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
       const currentUser = auth.currentUser;
-      if ((currentUser || user) && !guestMode) {
+      if ((currentUser || user) && !guestMode && !isSyncingFromCloud.current) {
         syncRegistrosDifference(prev, next);
       }
       return next;
@@ -1356,7 +1333,7 @@ export default function App() {
     _setMidias((prev: any) => {
       const next = typeof val === "function" ? val(prev) : val;
       const currentUser = auth.currentUser;
-      if ((currentUser || user) && !guestMode) {
+      if ((currentUser || user) && !guestMode && !isSyncingFromCloud.current) {
         syncMidiasDifference(prev, next);
       }
       return next;
@@ -1365,6 +1342,7 @@ export default function App() {
 
   // Helper sync logic - optimized to write only modified week documents
   const syncSemanariosDifference = (prev: any[], next: any[]) => {
+    if (isSyncingFromCloud.current) return;
     if (JSON.stringify(prev) === JSON.stringify(next)) return;
     const prevMap = new Map((prev || []).map(s => [s.id, s]));
     const nextMap = new Map((next || []).map(s => [s.id, s]));
@@ -1387,6 +1365,7 @@ export default function App() {
   };
 
   const syncRegistrosDifference = (prev: any, next: any) => {
+    if (isSyncingFromCloud.current) return;
     if (JSON.stringify(prev) === JSON.stringify(next)) return;
     const prevKeys = Object.keys(prev || {});
     const nextKeys = Object.keys(next || {});
@@ -1408,6 +1387,7 @@ export default function App() {
   };
 
   const syncMidiasDifference = (prev: any, next: any) => {
+    if (isSyncingFromCloud.current) return;
     if (JSON.stringify(prev) === JSON.stringify(next)) return;
     const prevKeys = Object.keys(prev || {});
     const nextKeys = Object.keys(next || {});
