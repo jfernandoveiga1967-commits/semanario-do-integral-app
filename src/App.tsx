@@ -773,7 +773,7 @@ export default function App() {
       list.sort((a, b) => (a.email || "").localeCompare(b.email || ""));
       setListaUsuarios(list);
     }, (err) => {
-      console.error("Erro ao carregar lista de usuários:", err);
+      handleFirestoreError(err, "carregar lista de usuários");
     });
     return () => unsub();
   }, [user, guestMode, userRole]);
@@ -1221,12 +1221,7 @@ export default function App() {
     });
   };
 
-  const [turmas, _setTurmas]           = useState(() => {
-    if (isLocalMode()) {
-      return loadLocal("semanario_turmas", TURMAS);
-    }
-    return TURMAS;
-  });
+  const [turmas, _setTurmas]           = useState(() => loadLocal("semanario_turmas", TURMAS));
 
   // Lista de turmas visíveis/permitidas baseada no perfil e atribuição do usuário
   const turmasVisiveis = useMemo(() => {
@@ -1248,7 +1243,7 @@ export default function App() {
     }
   }, [user, guestMode, userRole, turmasVisiveis]);
   const [atividadesPadrao, _setAtividadesPadrao] = useState(() => {
-    const raw = isLocalMode() ? loadLocal("semanario_atividades_padrao", ATIVIDADES_PADRAO) : ATIVIDADES_PADRAO;
+    const raw = loadLocal("semanario_atividades_padrao", ATIVIDADES_PADRAO);
     const cleaned: any = {};
     Object.keys(raw).forEach((k) => {
       cleaned[k] = (raw[k] || []).map((a: any) => formatarAtividadeUnica(a, k));
@@ -1256,7 +1251,7 @@ export default function App() {
     return cleaned;
   });
   const [semanarios, _setSemanarios] = useState(() => {
-    const raw = isLocalMode() ? loadLocal("semanario_lista", [SEM_INICIAL]) : [];
+    const raw = loadLocal("semanario_lista", [SEM_INICIAL]);
     const cleanedList = raw.map((s: any) => {
       const cleanedAtvs: any = {};
       if (s.atividades) {
@@ -1271,13 +1266,30 @@ export default function App() {
     });
     return ordenarSemanarios(cleanedList);
   });
-  const [semAtualId, setSemAtualId]   = useState("");
+  const [semAtualId, setSemAtualId]   = useState(() => {
+    const raw = loadLocal("semanario_lista", [SEM_INICIAL]);
+    if (Array.isArray(raw) && raw.length > 0) {
+      const sorted = ordenarSemanarios(raw);
+      return sorted[0].id;
+    }
+    return loadLocal("semanario_atual_id", "");
+  });
   const [tela, setTela]               = useState("home");
   const [turmaSel, setTurmaSel]       = useState<any>(null);
   const [atividadeSel, setAtividadeSel] = useState<any>(null);
-  const [registros, _setRegistros]     = useState(() => isLocalMode() ? loadLocal("semanario_registros", {}) : {});
+  const [registros, _setRegistros]     = useState(() => loadLocal("semanario_registros", {}));
   const [formData, setFormData]       = useState<any>({});
-  const [midias, _setMidias]           = useState(() => isLocalMode() ? loadLocal("semanario_midias", {}) : {});
+  const [midias, _setMidias]           = useState(() => loadLocal("semanario_midias", {}));
+
+  // Helper para tratar erros do Firestore (como cota esgotada) sem travar a aplicação
+  const handleFirestoreError = (e: any, contexto: string) => {
+    if (e?.code === "resource-exhausted" || e?.message?.includes("Quota") || e?.message?.includes("quota") || e?.message?.includes("resource-exhausted")) {
+      console.warn(`Firestore cota limite (${contexto}):`, e?.message || e);
+      toast$(`Aviso: Limite de cota do servidor atingido. Seus dados foram salvos localmente neste navegador!`, "erro");
+    } else {
+      console.warn(`Erro Firestore (${contexto}):`, e);
+    }
+  };
 
   // Intercepting Setters to automatically write modifications to Firebase when user-initiated
   const setTurmas = (val: any) => {
@@ -1286,7 +1298,7 @@ export default function App() {
       const currentUser = auth.currentUser;
       if ((currentUser || user) && !guestMode && !isSyncingFromCloud.current) {
         const cleaned = JSON.parse(JSON.stringify(next));
-        setDoc(doc(db, "config", "turmas"), { data: cleaned }).catch(e => console.error("Erro ao salvar turmas:", e));
+        setDoc(doc(db, "config", "turmas"), { data: cleaned }).catch(e => handleFirestoreError(e, "turmas"));
       }
       return next;
     });
@@ -1298,7 +1310,7 @@ export default function App() {
       const currentUser = auth.currentUser;
       if ((currentUser || user) && !guestMode && !isSyncingFromCloud.current) {
         const cleaned = JSON.parse(JSON.stringify(next));
-        setDoc(doc(db, "config", "atividades_padrao"), { data: cleaned }).catch(e => console.error("Erro ao salvar atividades padrão:", e));
+        setDoc(doc(db, "config", "atividades_padrao"), { data: cleaned }).catch(e => handleFirestoreError(e, "atividades"));
       }
       return next;
     });
@@ -1352,14 +1364,14 @@ export default function App() {
       if (!prevSem || JSON.stringify(prevSem) !== JSON.stringify(sem)) {
         // Save semanario document safely stripping undefined values
         const cleanedSem = JSON.parse(JSON.stringify(sem));
-        setDoc(doc(db, "semanarios", sem.id), cleanedSem).catch(e => console.error("Erro ao salvar semanário:", e));
+        setDoc(doc(db, "semanarios", sem.id), cleanedSem).catch(e => handleFirestoreError(e, "semanários"));
       }
     });
 
     (prev || []).forEach(sem => {
       if (!nextMap.has(sem.id)) {
         // Delete semanario document
-        deleteDoc(doc(db, "semanarios", sem.id)).catch(e => console.error("Erro ao deletar semanário:", e));
+        deleteDoc(doc(db, "semanarios", sem.id)).catch(e => handleFirestoreError(e, "exclusão de semanário"));
       }
     });
   };
@@ -1375,13 +1387,13 @@ export default function App() {
       const nextVal = next[k];
       if (!prevVal || JSON.stringify(prevVal) !== JSON.stringify(nextVal)) {
         const cleanedVal = JSON.parse(JSON.stringify(nextVal));
-        setDoc(doc(db, "registros", k), cleanedVal).catch(e => console.error("Erro ao salvar registro:", e));
+        setDoc(doc(db, "registros", k), cleanedVal).catch(e => handleFirestoreError(e, "registro"));
       }
     });
 
     prevKeys.forEach(k => {
       if (!(k in next)) {
-        deleteDoc(doc(db, "registros", k)).catch(e => console.error("Erro ao deletar registro:", e));
+        deleteDoc(doc(db, "registros", k)).catch(e => handleFirestoreError(e, "exclusão de registro"));
       }
     });
   };
@@ -1397,13 +1409,13 @@ export default function App() {
       const nextVal = next[k];
       if (!prevVal || JSON.stringify(prevVal) !== JSON.stringify(nextVal)) {
         const cleanedVal = JSON.parse(JSON.stringify(nextVal));
-        setDoc(doc(db, "midias", k), { items: cleanedVal }).catch(e => console.error("Erro ao salvar mídia:", e));
+        setDoc(doc(db, "midias", k), { items: cleanedVal }).catch(e => handleFirestoreError(e, "mídia"));
       }
     });
 
     prevKeys.forEach(k => {
       if (!(k in next)) {
-        deleteDoc(doc(db, "midias", k)).catch(e => console.error("Erro ao deletar mídia:", e));
+        deleteDoc(doc(db, "midias", k)).catch(e => handleFirestoreError(e, "exclusão de mídia"));
       }
     });
   };
@@ -1452,7 +1464,7 @@ export default function App() {
                   email: currentUser.email || "",
                   role: "admin",
                   updatedAt: new Date().toISOString()
-                }, { merge: true }).catch(err => console.error("Erro ao restaurar admin:", err));
+                }, { merge: true }).catch(err => handleFirestoreError(err, "restaurar admin"));
               }
 
               setUserRole(effectiveRole);
@@ -1497,7 +1509,7 @@ export default function App() {
                 turmas: tArr,
                 categorias: cArr,
                 updatedAt: new Date().toISOString()
-              }, { merge: true }).catch(err => console.error("Erro ao criar perfil de usuário:", err));
+              }, { merge: true }).catch(err => handleFirestoreError(err, "perfil de usuário"));
 
               setUserRole(r);
               setUserTurmas(tArr);
@@ -1506,29 +1518,33 @@ export default function App() {
           });
 
           // Verify if cloud contains semanarios (using query and limit to avoid fetching all documents)
-          const semSnap = await getDocs(query(collection(db, "semanarios"), limit(1)));
-          if (semSnap.empty) {
-            // Cloud is empty. Seed it with current LocalStorage values
-            const localSem = loadLocal("semanario_lista", [SEM_INICIAL]);
-            const localRegs = loadLocal("semanario_registros", {});
-            const localMids = loadLocal("semanario_midias", {});
-            const localTurmas = loadLocal("semanario_turmas", TURMAS);
-            const localAtvsPadrao = loadLocal("semanario_atividades_padrao", ATIVIDADES_PADRAO);
+          try {
+            const semSnap = await getDocs(query(collection(db, "semanarios"), limit(1)));
+            if (semSnap.empty) {
+              // Cloud is empty. Seed it with current LocalStorage values
+              const localSem = loadLocal("semanario_lista", [SEM_INICIAL]);
+              const localRegs = loadLocal("semanario_registros", {});
+              const localMids = loadLocal("semanario_midias", {});
+              const localTurmas = loadLocal("semanario_turmas", TURMAS);
+              const localAtvsPadrao = loadLocal("semanario_atividades_padrao", ATIVIDADES_PADRAO);
 
-            const batch = writeBatch(db);
-            localSem.forEach((s: any) => {
-              batch.set(doc(db, "semanarios", s.id), s);
-            });
-            Object.keys(localRegs).forEach((k: string) => {
-              batch.set(doc(db, "registros", k), localRegs[k]);
-            });
-            Object.keys(localMids).forEach((k: string) => {
-              batch.set(doc(db, "midias", k), { items: localMids[k] });
-            });
-            batch.set(doc(db, "config", "turmas"), { data: localTurmas });
-            batch.set(doc(db, "config", "atividades_padrao"), { data: localAtvsPadrao });
+              const batch = writeBatch(db);
+              localSem.forEach((s: any) => {
+                batch.set(doc(db, "semanarios", s.id), s);
+              });
+              Object.keys(localRegs).forEach((k: string) => {
+                batch.set(doc(db, "registros", k), localRegs[k]);
+              });
+              Object.keys(localMids).forEach((k: string) => {
+                batch.set(doc(db, "midias", k), { items: localMids[k] });
+              });
+              batch.set(doc(db, "config", "turmas"), { data: localTurmas });
+              batch.set(doc(db, "config", "atividades_padrao"), { data: localAtvsPadrao });
 
-            await batch.commit();
+              await batch.commit();
+            }
+          } catch (e) {
+            handleFirestoreError(e, "verificação inicial do banco");
           }
 
           // Subscribe to real-time Cloud updates
@@ -1548,15 +1564,17 @@ export default function App() {
                 atividades: cleanedAtvs
               });
             });
-            const sorted = ordenarSemanarios(sList);
-            _setSemanarios(sorted);
-            if (sorted.length > 0 && (!hasInitialWeekBeenSet.current || !semAtualId)) {
-              hasInitialWeekBeenSet.current = true;
-              setSemAtualId(sorted[0].id);
+            if (sList.length > 0) {
+              const sorted = ordenarSemanarios(sList);
+              _setSemanarios(sorted);
+              if (!hasInitialWeekBeenSet.current || !semAtualId) {
+                hasInitialWeekBeenSet.current = true;
+                setSemAtualId(sorted[0].id);
+              }
             }
             isSyncingFromCloud.current = false;
           }, (error) => {
-            console.error("Erro no onSnapshot de semanarios:", error);
+            handleFirestoreError(error, "semanários cloud");
           });
 
           const unsubReg = onSnapshot(collection(db, "registros"), (snapshot) => {
@@ -1565,8 +1583,10 @@ export default function App() {
             snapshot.forEach((d) => {
               regs[d.id] = d.data();
             });
-            _setRegistros(regs);
+            _setRegistros((prev: any) => ({ ...prev, ...regs }));
             isSyncingFromCloud.current = false;
+          }, (error) => {
+            handleFirestoreError(error, "registros cloud");
           });
 
           const unsubMid = onSnapshot(collection(db, "midias"), (snapshot) => {
@@ -1575,33 +1595,35 @@ export default function App() {
             snapshot.forEach((d) => {
               mids[d.id] = d.data().items || [];
             });
-            _setMidias(mids);
+            _setMidias((prev: any) => ({ ...prev, ...mids }));
             isSyncingFromCloud.current = false;
+          }, (error) => {
+            handleFirestoreError(error, "mídias cloud");
           });
 
           const unsubTurmas = onSnapshot(doc(db, "config", "turmas"), (docSnap) => {
             isSyncingFromCloud.current = true;
-            if (docSnap.exists()) {
-              _setTurmas(docSnap.data().data || TURMAS);
-            } else {
-              _setTurmas(TURMAS);
+            if (docSnap.exists() && docSnap.data().data) {
+              _setTurmas(docSnap.data().data);
             }
             isSyncingFromCloud.current = false;
+          }, (error) => {
+            handleFirestoreError(error, "turmas cloud");
           });
 
           const unsubAtvs = onSnapshot(doc(db, "config", "atividades_padrao"), (docSnap) => {
             isSyncingFromCloud.current = true;
-            if (docSnap.exists()) {
-              _setAtividadesPadrao(docSnap.data().data || ATIVIDADES_PADRAO);
-            } else {
-              _setAtividadesPadrao(ATIVIDADES_PADRAO);
+            if (docSnap.exists() && docSnap.data().data) {
+              _setAtividadesPadrao(docSnap.data().data);
             }
             isSyncingFromCloud.current = false;
+          }, (error) => {
+            handleFirestoreError(error, "atividades cloud");
           });
 
           activeUnsubscribers.current = [unsubUser, unsubSem, unsubReg, unsubMid, unsubTurmas, unsubAtvs];
         } catch (e) {
-          console.error("Erro na sincronização Firebase:", e);
+          handleFirestoreError(e, "sincronização Firebase");
         } finally {
           isSyncingFromCloud.current = false;
         }
@@ -2761,9 +2783,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     });
   };
 
-  // Save to localStorage when state changes (ONLY in guest/local mode)
+  // Save to localStorage when state changes (always keep local backup)
   useEffect(() => {
-    if (!isLocalMode()) return;
     try {
       localStorage.setItem("semanario_registros", JSON.stringify(registros));
     } catch (e) {
@@ -2772,7 +2793,6 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   }, [registros]);
 
   useEffect(() => {
-    if (!isLocalMode()) return;
     try {
       localStorage.setItem("semanario_lista", JSON.stringify(semanarios));
     } catch (e) {
@@ -2781,7 +2801,6 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   }, [semanarios]);
 
   useEffect(() => {
-    if (!isLocalMode()) return;
     try {
       localStorage.setItem("semanario_turmas", JSON.stringify(turmas));
     } catch (e) {
@@ -2790,7 +2809,6 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   }, [turmas]);
 
   useEffect(() => {
-    if (!isLocalMode()) return;
     try {
       localStorage.setItem("semanario_atividades_padrao", JSON.stringify(atividadesPadrao));
     } catch (e) {
@@ -2830,7 +2848,6 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   };
 
   useEffect(() => {
-    if (!isLocalMode()) return;
     try {
       localStorage.setItem("semanario_midias", JSON.stringify(midias));
     } catch (e) {
@@ -2839,7 +2856,6 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   }, [midias]);
 
   useEffect(() => {
-    if (!isLocalMode()) return;
     try {
       localStorage.setItem("semanario_atual_id", JSON.stringify(semAtualId));
     } catch (e) {
@@ -3409,8 +3425,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       });
       setAtividadesPesquisa(list);
     } catch (err) {
-      console.error(err);
-      toast$("Erro ao carregar atividades do Firestore.", "erro");
+      handleFirestoreError(err, "carregar biblioteca de atividades");
     } finally {
       setCarregandoPesquisa(false);
     }
@@ -5796,8 +5811,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                                   }, { merge: true })
                                   .then(() => toast$(`Perfil atualizado para ${r === "admin" ? "Administrador" : r === "coordenador" ? "Coordenador" : "Auxiliar"}!`))
                                   .catch((err) => {
-                                    console.error(err);
-                                    toast$("Erro ao atualizar perfil no Firestore.", "erro");
+                                    handleFirestoreError(err, "atualizar perfil");
                                   });
                                 }}
                                 className={`px-1.5 py-0.5 rounded text-[9px] font-bold transition-all ${
