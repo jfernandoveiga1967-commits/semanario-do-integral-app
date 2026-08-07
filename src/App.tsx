@@ -1200,6 +1200,8 @@ export default function App() {
   const isSyncingFromCloud = useRef(false);
   const activeUnsubscribers = useRef<any[]>([]);
   const hasInitialWeekBeenSet = useRef(false);
+  const userSelectedWeekInSession = useRef(false);
+  const lastLoggedWeekId = useRef<string | null>(null);
 
   const isLocalMode = () => {
     if (user && !guestMode) return false;
@@ -1210,13 +1212,16 @@ export default function App() {
     }
   };
 
+  // 1. Função de Ordenação de Semanas (Decrescente por número da semana ou data/id)
   const ordenarSemanarios = (lista: any[]) => {
     return [...(lista || [])].sort((a: any, b: any) => {
-      const numA = typeof a?.numero === 'number' ? a.numero : parseInt(String(a?.numero || '0'), 10);
-      const numB = typeof b?.numero === 'number' ? b.numero : parseInt(String(b?.numero || '0'), 10);
+      let numA = typeof a?.numero === 'number' ? a.numero : parseInt(String(a?.numero || '0'), 10);
+      let numB = typeof b?.numero === 'number' ? b.numero : parseInt(String(b?.numero || '0'), 10);
+      if (isNaN(numA)) numA = 0;
+      if (isNaN(numB)) numB = 0;
       if (numA !== numB) return numB - numA;
-      const dateA = a?.startDate || a?.periodo || a?.id || "";
-      const dateB = b?.startDate || b?.periodo || b?.id || "";
+      const dateA = String(a?.startDate || a?.periodo || a?.id || "");
+      const dateB = String(b?.startDate || b?.periodo || b?.id || "");
       return dateB.localeCompare(dateA);
     });
   };
@@ -1252,7 +1257,7 @@ export default function App() {
   });
   const [semanarios, _setSemanarios] = useState(() => {
     const raw = loadLocal("semanario_lista", [SEM_INICIAL]);
-    const cleanedList = raw.map((s: any) => {
+    const cleanedList = (raw || []).map((s: any) => {
       const cleanedAtvs: any = {};
       if (s.atividades) {
         Object.keys(s.atividades).forEach((tId) => {
@@ -1266,14 +1271,27 @@ export default function App() {
     });
     return ordenarSemanarios(cleanedList);
   });
+
+  // 3. Verificação de Cache Local: Inicializa sem_atual sempre focado na primeira (mais recente) da lista
   const [semAtualId, setSemAtualId]   = useState(() => {
     const raw = loadLocal("semanario_lista", [SEM_INICIAL]);
     if (Array.isArray(raw) && raw.length > 0) {
       const sorted = ordenarSemanarios(raw);
-      return sorted[0].id;
+      return sorted[0]?.id || "";
     }
-    return loadLocal("semanario_atual_id", "");
+    return "";
   });
+
+  // Helper para seleção manual com flag de sessão e log de depuração
+  const selecionarSemanaManual = (id: string) => {
+    userSelectedWeekInSession.current = true;
+    setSemAtualId(id);
+    const encontrada = semanarios.find((s: any) => s.id === id);
+    if (encontrada) {
+      lastLoggedWeekId.current = id;
+      console.log(`[Semana Ativa Selecionada]:`, encontrada.numero !== undefined ? encontrada.numero : id);
+    }
+  };
   const [tela, setTela]               = useState("home");
   const [turmaSel, setTurmaSel]       = useState<any>(null);
   const [atividadeSel, setAtividadeSel] = useState<any>(null);
@@ -1427,6 +1445,7 @@ export default function App() {
       activeUnsubscribers.current.forEach(u => u());
       activeUnsubscribers.current = [];
       hasInitialWeekBeenSet.current = false;
+      userSelectedWeekInSession.current = false;
 
       setUser(currentUser);
       if (currentUser) {
@@ -1567,10 +1586,6 @@ export default function App() {
             if (sList.length > 0) {
               const sorted = ordenarSemanarios(sList);
               _setSemanarios(sorted);
-              if (!hasInitialWeekBeenSet.current || !semAtualId) {
-                hasInitialWeekBeenSet.current = true;
-                setSemAtualId(sorted[0].id);
-              }
             }
             isSyncingFromCloud.current = false;
           }, (error) => {
@@ -1637,10 +1652,6 @@ export default function App() {
         _setAtividadesPadrao(loadLocal("semanario_atividades_padrao", ATIVIDADES_PADRAO));
         const localSem = ordenarSemanarios(loadLocal("semanario_lista", [SEM_INICIAL]));
         _setSemanarios(localSem);
-        if (localSem.length > 0 && (!hasInitialWeekBeenSet.current || !semAtualId)) {
-          hasInitialWeekBeenSet.current = true;
-          setSemAtualId(localSem[0].id);
-        }
         _setRegistros(loadLocal("semanario_registros", {}));
         _setMidias(loadLocal("semanario_midias", {}));
       }
@@ -1652,11 +1663,27 @@ export default function App() {
     };
   }, []);
 
+  // 2. Seleção Reativa com Fallback & 4. Log de Depuração
   useEffect(() => {
-    if (semanarios.length > 0) {
-      if (!hasInitialWeekBeenSet.current || !semAtualId || !semanarios.some(s => s.id === semAtualId)) {
-        hasInitialWeekBeenSet.current = true;
-        setSemAtualId(semanarios[0].id);
+    if (!semanarios || semanarios.length === 0) return;
+
+    const sorted = ordenarSemanarios(semanarios);
+    const semanaMaisRecente = sorted[0];
+    const semanaAtualExiste = semanarios.some(s => s.id === semAtualId);
+
+    if (!userSelectedWeekInSession.current || !semAtualId || !semanaAtualExiste) {
+      if (semAtualId !== semanaMaisRecente.id) {
+        setSemAtualId(semanaMaisRecente.id);
+      }
+      if (lastLoggedWeekId.current !== semanaMaisRecente.id) {
+        lastLoggedWeekId.current = semanaMaisRecente.id;
+        console.log(`[Semana Ativa Selecionada]:`, semanaMaisRecente.numero !== undefined ? semanaMaisRecente.numero : semanaMaisRecente.id);
+      }
+    } else {
+      const semanaAtual = semanarios.find(s => s.id === semAtualId);
+      if (semanaAtual && lastLoggedWeekId.current !== semanaAtual.id) {
+        lastLoggedWeekId.current = semanaAtual.id;
+        console.log(`[Semana Ativa Selecionada]:`, semanaAtual.numero !== undefined ? semanaAtual.numero : semanaAtual.id);
       }
     }
   }, [semanarios, semAtualId]);
@@ -3526,8 +3553,11 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       ...(novoForm.usarTemasPorTurma ? { temasTurmas } : {})
     };
 
+    userSelectedWeekInSession.current = true;
     setSemanarios((prev: any) => [...prev, novo]);
     setSemAtualId(novo.id);
+    lastLoggedWeekId.current = novo.id;
+    console.log(`[Semana Ativa Selecionada]:`, novo.numero !== undefined ? novo.numero : novo.id);
     setModalNovo(false);
     toast$(`Semanário S ${novoForm.numero} criado!`);
   };
@@ -3577,9 +3607,13 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       return;
     }
 
-    setSemanarios(novasSemanas);
-    if (semAtualId === id) {
-      setSemAtualId(novasSemanas[0].id);
+    userSelectedWeekInSession.current = false;
+    const restantes = ordenarSemanarios(novasSemanas);
+    setSemanarios(restantes);
+    if (semAtualId === id && restantes.length > 0) {
+      setSemAtualId(restantes[0].id);
+      lastLoggedWeekId.current = restantes[0].id;
+      console.log(`[Semana Ativa Selecionada]:`, restantes[0].numero !== undefined ? restantes[0].numero : restantes[0].id);
     }
 
     // Limpeza opcional de registros e mídias
@@ -5426,7 +5460,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => {
-                        setSemAtualId(s.id);
+                        selecionarSemanaManual(s.id);
                         setTelaBiblioteca(false);
                         toast$(`Semana ${s.numero} selecionada.`);
                       }}
@@ -5606,7 +5640,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                                   </div>
                                   <button
                                     onClick={() => {
-                                      setSemAtualId(a.semanarioId);
+                                      selecionarSemanaManual(a.semanarioId);
                                       setTelaBiblioteca(false);
                                       toast$(`Semana ${a.semanarioNumero} selecionada!`);
                                     }}
