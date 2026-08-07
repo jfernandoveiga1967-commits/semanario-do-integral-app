@@ -83,9 +83,9 @@ const ATIVIDADES_PADRAO: any = {
     { id: "mm4",  nome: "Contação de História:",  descricao: "" },
     { id: "mm5",  nome: "Culinária:",             descricao: "" },
     { id: "mm6",  nome: "Devocional:",            descricao: "" },
+    { id: "mm14", nome: "Estímulo Motor:",        descricao: "" },
     { id: "mm7",  nome: "Judô:",                  descricao: "" },
     { id: "mm8",  nome: "Lego:",                  descricao: "" },
-    { id: "mm9",  nome: "Motoca:",                descricao: "" },
     { id: "mm10", nome: "Música:",                descricao: "" },
     { id: "mm11", nome: "Natação:",               descricao: "" },
     { id: "mm12", nome: "Projetos:",              descricao: "" },
@@ -122,7 +122,6 @@ const ATIVIDADES_PADRAO: any = {
   "1ano-azul": [
     { id: "1a1",  nome: "Artes:",                 descricao: "" },
     { id: "1a2",  nome: "Balé:",                  descricao: "" },
-    { id: "1a3",  nome: "Caixa de Brinquedos:",   descricao: "" },
     { id: "1a4",  nome: "Contação de História:",  descricao: "" },
     { id: "1a5",  nome: "Coral:",                 descricao: "" },
     { id: "1a6",  nome: "Culinária:",             descricao: "" },
@@ -230,7 +229,6 @@ const ATIVIDADES_PADRAO: any = {
     { id: "5a10", nome: "Informática:",           descricao: "" },
     { id: "5a11", nome: "Judô:",                  descricao: "" },
     { id: "5a12", nome: "Lego:",                  descricao: "" },
-    { id: "5a13", nome: "Leitura de Gibi:",       descricao: "" },
     { id: "5a14", nome: "Natação:",               descricao: "" },
     { id: "5a15", nome: "Projetos:",              descricao: "" },
     { id: "5a16", nome: "Psicomotricidade:",      descricao: "" },
@@ -3101,6 +3099,30 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
           }
           return a;
         });
+
+      // Exclusões específicas solicitadas por turma
+      if (tId === "mini-maternal-azul") {
+        const lenBefore = novas.length;
+        novas = novas.filter((a: any) => !a.nome.toLowerCase().startsWith("motoca"));
+        if (novas.length !== lenBefore) mudou = true;
+      }
+      if (tId === "1ano-azul") {
+        const lenBefore = novas.length;
+        novas = novas.filter((a: any) => !a.nome.toLowerCase().startsWith("caixa de brinquedos"));
+        if (novas.length !== lenBefore) mudou = true;
+      }
+      if (tId === "5ano-azul" || tId === "6ano-azul") {
+        const lenBefore = novas.length;
+        novas = novas.filter((a: any) => {
+          const nl = a.nome.toLowerCase();
+          return !nl.startsWith("contação de história") &&
+                 !nl.startsWith("contacao de historia") &&
+                 !nl.startsWith("leitura de gibi") &&
+                 !nl.includes("roda quinta-feira");
+        });
+        if (novas.length !== lenBefore) mudou = true;
+      }
+
       return { novas, mudou };
     };
 
@@ -3112,7 +3134,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
         Object.keys(s.atividades || {}).forEach(tId => {
           const { novas, mudou } = migrarNomes(s.atividades[tId], tId, s.id);
           
-          // INJECTION: Also ensure any missing standard activities (like Lição de Casa) are added to existing semanarios
+          // INJECTION: Also ensure any missing standard activities (like Lição de Casa / Estímulo Motor) are added to existing semanarios
           const nomesExistentes = novas.map(a => (a.nome || "").toLowerCase());
           const extras = ATIVIDADES_PADRAO[tId] || [];
           let finalAtvs = [...novas];
@@ -3129,6 +3151,22 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
               mExtra = true;
             }
           });
+
+          if (tId === "mini-maternal-azul") {
+            finalAtvs = finalAtvs.filter(a => !a.nome.toLowerCase().startsWith("motoca"));
+          }
+          if (tId === "1ano-azul") {
+            finalAtvs = finalAtvs.filter(a => !a.nome.toLowerCase().startsWith("caixa de brinquedos"));
+          }
+          if (tId === "5ano-azul" || tId === "6ano-azul") {
+            finalAtvs = finalAtvs.filter(a => {
+              const nl = a.nome.toLowerCase();
+              return !nl.startsWith("contação de história") &&
+                     !nl.startsWith("contacao de historia") &&
+                     !nl.startsWith("leitura de gibi") &&
+                     !nl.includes("roda quinta-feira");
+            });
+          }
           
           novasAtividades[tId] = finalAtvs;
           if (mudou || mExtra) sMudou = true;
@@ -3154,15 +3192,35 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
         let finalAtvs = [...n1];
         let m2 = false;
 
-        // Remoção específica da atividade solicitada (Roda Quinta-feira no 6º Ano)
-        if (tId === "6ano-azul") {
+        if (tId === "mini-maternal-azul") {
           const antes = finalAtvs.length;
-          finalAtvs = finalAtvs.filter(a => !a.nome.toLowerCase().includes("roda quinta-feira"));
+          finalAtvs = finalAtvs.filter(a => !a.nome.toLowerCase().startsWith("motoca"));
+          if (finalAtvs.length !== antes) m2 = true;
+        }
+        if (tId === "1ano-azul") {
+          const antes = finalAtvs.length;
+          finalAtvs = finalAtvs.filter(a => !a.nome.toLowerCase().startsWith("caixa de brinquedos"));
+          if (finalAtvs.length !== antes) m2 = true;
+        }
+        if (tId === "5ano-azul" || tId === "6ano-azul") {
+          const antes = finalAtvs.length;
+          finalAtvs = finalAtvs.filter(a => {
+            const nl = a.nome.toLowerCase();
+            return !nl.startsWith("contação de história") &&
+                   !nl.startsWith("contacao de historia") &&
+                   !nl.startsWith("leitura de gibi") &&
+                   !nl.includes("roda quinta-feira");
+          });
           if (finalAtvs.length !== antes) m2 = true;
         }
 
         extras.forEach((ex: any) => {
-          if (!nomesExistentes.includes(ex.nome.toLowerCase())) {
+          const catName = ex.nome.split(":")[0].trim().toLowerCase();
+          const exists = finalAtvs.some(a => {
+            const cn = (a.nome || "").split(":")[0].trim().toLowerCase();
+            return cn === catName;
+          });
+          if (!exists) {
             finalAtvs.push(ex);
             m2 = true;
           }
@@ -3440,7 +3498,9 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     // Cria estrutura de turmas baseada na base de dados padronizada (ATIVIDADES_PADRAO) com categorias limpas e em ordem alfabética como modelo de documento
     const atividadesLimpas: any = {};
     turmas.forEach((t: any) => {
-      const base = ATIVIDADES_PADRAO[t.id] || [];
+      const base = (atividadesPadrao && atividadesPadrao[t.id] && atividadesPadrao[t.id].length > 0)
+        ? atividadesPadrao[t.id]
+        : (ATIVIDADES_PADRAO[t.id] || []);
       atividadesLimpas[t.id] = base.map((a: any, index: number) => {
         const catPura = a.nome.includes(":") ? a.nome.split(":")[0].trim() : a.nome.trim();
         return {
