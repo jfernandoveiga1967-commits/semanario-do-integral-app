@@ -75,7 +75,7 @@ const TURMAS = [
   { id: "6ano-azul",                  label: "6º Ano Azul",                 cor: "#2563EB" }, // Azul
 ];
 
-const ATIVIDADES_PADRAO: any = {
+const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descricao: string }>> = {
   "mini-maternal-azul": [
     { id: "mm1",  nome: "Artes:",                 descricao: "" },
     { id: "mm2",  nome: "Balé:",                  descricao: "" },
@@ -83,13 +83,14 @@ const ATIVIDADES_PADRAO: any = {
     { id: "mm4",  nome: "Contação de História:",  descricao: "" },
     { id: "mm5",  nome: "Culinária:",             descricao: "" },
     { id: "mm6",  nome: "Devocional:",            descricao: "" },
-    { id: "mm14", nome: "Estímulo Motor:",        descricao: "" },
-    { id: "mm7",  nome: "Judô:",                  descricao: "" },
-    { id: "mm8",  nome: "Lego:",                  descricao: "" },
+    { id: "mm7",  nome: "Estímulo Motor (Motoca):", descricao: "" },
+    { id: "mm8",  nome: "Judô:",                  descricao: "" },
+    { id: "mm9",  nome: "Lego:",                  descricao: "" },
     { id: "mm10", nome: "Música:",                descricao: "" },
     { id: "mm11", nome: "Natação:",               descricao: "" },
-    { id: "mm12", nome: "Projetos:",              descricao: "" },
-    { id: "mm13", nome: "Psicomotricidade:",      descricao: "" }
+    { id: "mm12", nome: "Projeto:",               descricao: "" },
+    { id: "mm13", nome: "Psicomotricidade:",      descricao: "" },
+    { id: "mm14", nome: "Roda de Música:",        descricao: "" }
   ],
   "infantil1-azul": [
     { id: "i1-1",  nome: "Artes:",                 descricao: "" },
@@ -102,8 +103,9 @@ const ATIVIDADES_PADRAO: any = {
     { id: "i1-8",  nome: "Lego:",                  descricao: "" },
     { id: "i1-9",  nome: "Música:",                descricao: "" },
     { id: "i1-10", nome: "Natação:",               descricao: "" },
-    { id: "i1-11", nome: "Projetos:",              descricao: "" },
-    { id: "i1-12", nome: "Psicomotricidade:",      descricao: "" }
+    { id: "i1-11", nome: "Projeto:",               descricao: "" },
+    { id: "i1-12", nome: "Psicomotricidade:",      descricao: "" },
+    { id: "i1-13", nome: "Roda de Música:",        descricao: "" }
   ],
   "infantil2-azul": [
     { id: "i2-1",  nome: "Artes:",                 descricao: "" },
@@ -114,32 +116,28 @@ const ATIVIDADES_PADRAO: any = {
     { id: "i2-6",  nome: "Devocional:",            descricao: "" },
     { id: "i2-7",  nome: "Judô:",                  descricao: "" },
     { id: "i2-8",  nome: "Lego:",                  descricao: "" },
-    { id: "i2-9",  nome: "Música:",                descricao: "" },
-    { id: "i2-10", nome: "Natação:",               descricao: "" },
-    { id: "i2-11", nome: "Projetos:",              descricao: "" },
-    { id: "i2-12", nome: "Psicomotricidade:",      descricao: "" }
+    { id: "i2-9",  nome: "Lição de Casa:",         descricao: "" },
+    { id: "i2-10", nome: "Música:",                descricao: "" },
+    { id: "i2-11", nome: "Natação:",               descricao: "" },
+    { id: "i2-12", nome: "Projeto:",               descricao: "" },
+    { id: "i2-13", nome: "Psicomotricidade:",      descricao: "" }
   ],
   "1ano-azul": [
-    { id: "1a1",  nome: "Artes:",                 descricao: "" },
+    { id: "1a1",  nome: "Devocional:",            descricao: "" },
     { id: "1a2",  nome: "Balé:",                  descricao: "" },
+    { id: "1a3",  nome: "Caixa de Jogos:",        descricao: "" },
     { id: "1a4",  nome: "Contação de História:",  descricao: "" },
     { id: "1a5",  nome: "Coral:",                 descricao: "" },
     { id: "1a6",  nome: "Culinária:",             descricao: "" },
-    { id: "1a7",  nome: "Devocional:",            descricao: "" },
-    { id: "1a8",  nome: "Flauta:",                descricao: "" },
-    { id: "1a9",  nome: "Informática:",           descricao: "" },
-    { id: "1a10", nome: "Judô:",                  descricao: "" },
-    { id: "1a11", nome: "Lego:",                  descricao: "" },
-    { id: "1a12", nome: "Leitura de Gibi:",       descricao: "" },
+    { id: "1a7",  nome: "Flauta:",                descricao: "" },
+    { id: "1a8",  nome: "Informática:",           descricao: "" },
+    { id: "1a9",  nome: "Judô:",                  descricao: "" },
+    { id: "1a10", nome: "Lego:",                  descricao: "" },
+    { id: "1a11", nome: "Leitura de Gibi:",       descricao: "" },
+    { id: "1a12", nome: "Lição de Casa:",         descricao: "" },
     { id: "1a13", nome: "Natação:",               descricao: "" },
-    { id: "1a14", nome: "Projetos:",              descricao: "" },
-    { id: "1a15", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "1a16", nome: "Quadra B:",              descricao: "" },
-    { id: "1a17", nome: "Lição de Casa - Português:", descricao: "" },
-    { id: "1a18", nome: "Lição de Casa - Matemática:", descricao: "" },
-    { id: "1a19", nome: "Lição de Casa - Ciências:",  descricao: "" },
-    { id: "1a20", nome: "Lição de Casa - História:",  descricao: "" },
-    { id: "1a21", nome: "Lição de Casa - Geografia:", descricao: "" }
+    { id: "1a14", nome: "Projeto:",               descricao: "" },
+    { id: "1a15", nome: "Quadra:",                descricao: "" }
   ],
   "2ano-azul-vermelho": [
     { id: "2av1",  nome: "Artes:",                 descricao: "" },
@@ -156,15 +154,11 @@ const ATIVIDADES_PADRAO: any = {
     { id: "2av12", nome: "Judô:",                  descricao: "" },
     { id: "2av13", nome: "Lego:",                  descricao: "" },
     { id: "2av14", nome: "Leitura de Gibi:",       descricao: "" },
-    { id: "2av15", nome: "Natação:",               descricao: "" },
-    { id: "2av16", nome: "Projetos:",              descricao: "" },
-    { id: "2av17", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "2av18", nome: "Quadra B:",              descricao: "" },
-    { id: "2av19", nome: "Lição de Casa - Português:", descricao: "" },
-    { id: "2av20", nome: "Lição de Casa - Matemática:", descricao: "" },
-    { id: "2av21", nome: "Lição de Casa - Ciências:",  descricao: "" },
-    { id: "2av22", nome: "Lição de Casa - História:",  descricao: "" },
-    { id: "2av23", nome: "Lição de Casa - Geografia:", descricao: "" }
+    { id: "2av15", nome: "Lição de Casa:",         descricao: "" },
+    { id: "2av16", nome: "Natação:",               descricao: "" },
+    { id: "2av17", nome: "Projeto:",               descricao: "" },
+    { id: "2av18", nome: "Psicomotricidade:",      descricao: "" },
+    { id: "2av19", nome: "Quadra:",                descricao: "" }
   ],
   "3ano-azul-vermelho": [
     { id: "3av1",  nome: "Artes:",                 descricao: "" },
@@ -181,15 +175,11 @@ const ATIVIDADES_PADRAO: any = {
     { id: "3av12", nome: "Judô:",                  descricao: "" },
     { id: "3av13", nome: "Lego:",                  descricao: "" },
     { id: "3av14", nome: "Leitura de Gibi:",       descricao: "" },
-    { id: "3av15", nome: "Natação:",               descricao: "" },
-    { id: "3av16", nome: "Projetos:",              descricao: "" },
-    { id: "3av17", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "3av18", nome: "Quadra B:",              descricao: "" },
-    { id: "3av19", nome: "Lição de Casa - Português:", descricao: "" },
-    { id: "3av20", nome: "Lição de Casa - Matemática:", descricao: "" },
-    { id: "3av21", nome: "Lição de Casa - Ciências:",  descricao: "" },
-    { id: "3av22", nome: "Lição de Casa - História:",  descricao: "" },
-    { id: "3av23", nome: "Lição de Casa - Geografia:", descricao: "" }
+    { id: "3av15", nome: "Lição de Casa:",         descricao: "" },
+    { id: "3av16", nome: "Natação:",               descricao: "" },
+    { id: "3av17", nome: "Projeto:",               descricao: "" },
+    { id: "3av18", nome: "Psicomotricidade:",      descricao: "" },
+    { id: "3av19", nome: "Quadra:",                descricao: "" }
   ],
   "4ano-azul": [
     { id: "4a1",  nome: "Artes:",                 descricao: "" },
@@ -206,65 +196,127 @@ const ATIVIDADES_PADRAO: any = {
     { id: "4a12", nome: "Judô:",                  descricao: "" },
     { id: "4a13", nome: "Lego:",                  descricao: "" },
     { id: "4a14", nome: "Leitura de Gibi:",       descricao: "" },
-    { id: "4a15", nome: "Natação:",               descricao: "" },
-    { id: "4a16", nome: "Projetos:",              descricao: "" },
-    { id: "4a17", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "4a18", nome: "Quadra B:",              descricao: "" },
-    { id: "4a19", nome: "Lição de Casa - Português:", descricao: "" },
-    { id: "4a20", nome: "Lição de Casa - Matemática:", descricao: "" },
-    { id: "4a21", nome: "Lição de Casa - Ciências:",  descricao: "" },
-    { id: "4a22", nome: "Lição de Casa - História:",  descricao: "" },
-    { id: "4a23", nome: "Lição de Casa - Geografia:", descricao: "" }
+    { id: "4a15", nome: "Lição de Casa:",         descricao: "" },
+    { id: "4a16", nome: "Natação:",               descricao: "" },
+    { id: "4a17", nome: "Projeto:",               descricao: "" },
+    { id: "4a18", nome: "Psicomotricidade:",      descricao: "" },
+    { id: "4a19", nome: "Quadra:",                descricao: "" }
   ],
   "5ano-azul": [
     { id: "5a1",  nome: "Artes:",                 descricao: "" },
     { id: "5a2",  nome: "Caixa de Jogos:",        descricao: "" },
-    { id: "5a3",  nome: "Coral:",                 descricao: "" },
-    { id: "5a4",  nome: "Culinária:",             descricao: "" },
-    { id: "5a5",  nome: "Dança:",                 descricao: "" },
-    { id: "5a6",  nome: "Devocional:",            descricao: "" },
-    { id: "5a7",  nome: "Flauta:",                descricao: "" },
-    { id: "5a8",  nome: "Futebol:",               descricao: "" },
-    { id: "5a9",  nome: "Ginástica:",             descricao: "" },
-    { id: "5a10", nome: "Informática:",           descricao: "" },
-    { id: "5a11", nome: "Judô:",                  descricao: "" },
-    { id: "5a12", nome: "Lego:",                  descricao: "" },
-    { id: "5a14", nome: "Natação:",               descricao: "" },
-    { id: "5a15", nome: "Projetos:",              descricao: "" },
-    { id: "5a16", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "5a17", nome: "Quadra B:",              descricao: "" },
-    { id: "5a18", nome: "Robótica:",              descricao: "" },
-    { id: "5a19", nome: "Lição de Casa - Português:", descricao: "" },
-    { id: "5a20", nome: "Lição de Casa - Matemática:", descricao: "" },
-    { id: "5a21", nome: "Lição de Casa - Ciências:",  descricao: "" },
-    { id: "5a22", nome: "Lição de Casa - História:",  descricao: "" },
-    { id: "5a23", nome: "Lição de Casa - Geografia:", descricao: "" }
+    { id: "5a3",  nome: "Contação de História:",  descricao: "" },
+    { id: "5a4",  nome: "Coral:",                 descricao: "" },
+    { id: "5a5",  nome: "Culinária:",             descricao: "" },
+    { id: "5a6",  nome: "Dança:",                 descricao: "" },
+    { id: "5a7",  nome: "Devocional:",            descricao: "" },
+    { id: "5a8",  nome: "Flauta:",                descricao: "" },
+    { id: "5a9",  nome: "Futebol:",               descricao: "" },
+    { id: "5a10", nome: "Ginástica:",             descricao: "" },
+    { id: "5a11", nome: "Informática:",           descricao: "" },
+    { id: "5a12", nome: "Judô:",                  descricao: "" },
+    { id: "5a13", nome: "Lego:",                  descricao: "" },
+    { id: "5a14", nome: "Lição de Casa:",         descricao: "" },
+    { id: "5a15", nome: "Natação:",               descricao: "" },
+    { id: "5a16", nome: "Projeto:",               descricao: "" },
+    { id: "5a17", nome: "Psicomotricidade:",      descricao: "" },
+    { id: "5a18", nome: "Quadra:",                descricao: "" },
+    { id: "5a19", nome: "Robótica:",              descricao: "" }
   ],
   "6ano-azul": [
     { id: "6a1",  nome: "Artes:",                 descricao: "" },
     { id: "6a2",  nome: "Caixa de Jogos:",        descricao: "" },
-    { id: "6a3",  nome: "Coral:",                 descricao: "" },
-    { id: "6a4",  nome: "Culinária:",             descricao: "" },
-    { id: "6a5",  nome: "Dança:",                 descricao: "" },
-    { id: "6a6",  nome: "Devocional:",            descricao: "" },
-    { id: "6a7",  nome: "Flauta:",                descricao: "" },
-    { id: "6a8",  nome: "Futebol:",               descricao: "" },
-    { id: "6a9",  nome: "Ginástica:",             descricao: "" },
-    { id: "6a10", nome: "Informática:",           descricao: "" },
-    { id: "6a11", nome: "Judô:",                  descricao: "" },
-    { id: "6a12", nome: "Lego:",                  descricao: "" },
-    { id: "6a13", nome: "Natação:",               descricao: "" },
-    { id: "6a14", nome: "Projetos:",              descricao: "" },
-    { id: "6a15", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "6a16", nome: "Quadra B:",              descricao: "" },
-    { id: "6a17", nome: "Robótica:",              descricao: "" },
-    { id: "6a18", nome: "Lição de Casa - Português:", descricao: "" },
-    { id: "6a19", nome: "Lição de Casa - Matemática:", descricao: "" },
-    { id: "6a20", nome: "Lição de Casa - Ciências:",  descricao: "" },
-    { id: "6a21", nome: "Lição de Casa - História:",  descricao: "" },
-    { id: "6a22", nome: "Lição de Casa - Geografia:", descricao: "" }
-  ],
+    { id: "6a3",  nome: "Contação de História:",  descricao: "" },
+    { id: "6a4",  nome: "Coral:",                 descricao: "" },
+    { id: "6a5",  nome: "Culinária:",             descricao: "" },
+    { id: "6a6",  nome: "Dança:",                 descricao: "" },
+    { id: "6a7",  nome: "Devocional:",            descricao: "" },
+    { id: "6a8",  nome: "Flauta:",                descricao: "" },
+    { id: "6a9",  nome: "Futebol:",               descricao: "" },
+    { id: "6a10", nome: "Ginástica:",             descricao: "" },
+    { id: "6a11", nome: "Informática:",           descricao: "" },
+    { id: "6a12", nome: "Judô:",                  descricao: "" },
+    { id: "6a13", nome: "Lego:",                  descricao: "" },
+    { id: "6a14", nome: "Lição de Casa:",         descricao: "" },
+    { id: "6a15", nome: "Natação:",               descricao: "" },
+    { id: "6a16", nome: "Projeto:",               descricao: "" },
+    { id: "6a17", nome: "Psicomotricidade:",      descricao: "" },
+    { id: "6a18", nome: "Quadra:",                descricao: "" },
+    { id: "6a19", nome: "Robótica:",              descricao: "" }
+  ]
 };
+
+function obterCategoriaPuraKey(nome: string): string {
+  if (!nome) return "";
+  let base = nome.includes(":") ? nome.split(":")[0].trim() : nome.trim();
+  base = base.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  
+  if (base.startsWith("contacao")) return "contacao de historia";
+  if (base.startsWith("estimulo motor") || base.includes("motoca")) return "estimulo motor (motoca)";
+  if (base.startsWith("caixa de brinquedo") || base === "caixa de brinquedos") return "caixa de brinquedos";
+  if (base.startsWith("caixa de jogo") || base === "caixa de jogos") return "caixa de jogos";
+  if (base.startsWith("licao de casa") || base.startsWith("licao")) return "licao de casa";
+  if (base.startsWith("roda de musica")) return "roda de musica";
+  if (base.startsWith("musica")) return "musica";
+  if (base.startsWith("informatica")) return "informatica";
+  if (base.startsWith("robotica")) return "robotica";
+  if (base.startsWith("leitura de gibi")) return "leitura de gibi";
+  if (base.startsWith("psicomotricidade")) return "psicomotricidade";
+  
+  return base;
+}
+
+function garantirAtividadesPadraoTurma(atvsExistentes: any[], tId: string, emailUsuario?: string) {
+  const listaOficial = ATIVIDADES_PADRAO[tId] || ATIVIDADES_PADRAO["1ano-azul"] || [];
+  const resultado: any[] = [];
+
+  listaOficial.forEach((itemPadrao, index) => {
+    const keyPadrao = obterCategoriaPuraKey(itemPadrao.nome);
+    
+    // Procura na lista existente por um item correspondente à mesma categoria
+    const correspondentes = (atvsExistentes || []).filter(a => {
+      return obterCategoriaPuraKey(a.nome) === keyPadrao;
+    });
+
+    if (correspondentes.length > 0) {
+      let melhor = correspondentes[0];
+      for (const candidate of correspondentes) {
+        if ((candidate.descricao || "").trim().length > (melhor.descricao || "").trim().length) {
+          melhor = candidate;
+        }
+      }
+
+      const catOficialPura = itemPadrao.nome.includes(":") ? itemPadrao.nome.split(":")[0].trim() : itemPadrao.nome.trim();
+      let nomeFormatado = melhor.nome || "";
+      if (!nomeFormatado.toLowerCase().startsWith(catOficialPura.toLowerCase())) {
+        const parts = nomeFormatado.split(":");
+        const rest = parts.length > 1 ? parts.slice(1).join(":") : "";
+        nomeFormatado = rest ? `${catOficialPura}: ${rest.trim()}` : `${catOficialPura}:`;
+      }
+
+      resultado.push({
+        ...melhor,
+        id: melhor.id || `${tId}_${index}_${Date.now()}`,
+        nome: nomeFormatado,
+        descricao: melhor.descricao || "",
+        adiResponsavel: melhor.adiResponsavel || "",
+        monitoras: melhor.monitoras || "",
+        criadoPorEmail: melhor.criadoPorEmail || emailUsuario || "Local"
+      });
+    } else {
+      resultado.push({
+        id: `${tId}_p_${index}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        nome: itemPadrao.nome,
+        descricao: "",
+        adiResponsavel: "",
+        monitoras: "",
+        criadoPorEmail: emailUsuario || "Local"
+      });
+    }
+  });
+
+  return resultado;
+}
 
 const STATUS_CONFIG: any = {
   realizada:     { label: "Realizada",     emoji: "✅", cor: "#059669", bg: "#D1FAE5", border: "#6EE7B7" },
@@ -2742,7 +2794,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
           }
         });
 
-        novasAtividades[tId] = atvsMapeadas;
+        novasAtividades[tId] = garantirAtividadesPadraoTurma(atvsMapeadas, tId, (!guestMode && user?.email) ? user.email : "Local");
       });
 
       if (Object.keys(novasAtividades).length > 0) {
@@ -3083,29 +3135,6 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
           return a;
         });
 
-      // Exclusões específicas solicitadas por turma
-      if (tId === "mini-maternal-azul") {
-        const lenBefore = novas.length;
-        novas = novas.filter((a: any) => !a.nome.toLowerCase().startsWith("motoca"));
-        if (novas.length !== lenBefore) mudou = true;
-      }
-      if (tId === "1ano-azul") {
-        const lenBefore = novas.length;
-        novas = novas.filter((a: any) => !a.nome.toLowerCase().startsWith("caixa de brinquedos"));
-        if (novas.length !== lenBefore) mudou = true;
-      }
-      if (tId === "5ano-azul" || tId === "6ano-azul") {
-        const lenBefore = novas.length;
-        novas = novas.filter((a: any) => {
-          const nl = a.nome.toLowerCase();
-          return !nl.startsWith("contação de história") &&
-                 !nl.startsWith("contacao de historia") &&
-                 !nl.startsWith("leitura de gibi") &&
-                 !nl.includes("roda quinta-feira");
-        });
-        if (novas.length !== lenBefore) mudou = true;
-      }
-
       return { novas, mudou };
     };
 
@@ -3116,43 +3145,9 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
         let sMudou = false;
         Object.keys(s.atividades || {}).forEach(tId => {
           const { novas, mudou } = migrarNomes(s.atividades[tId], tId, s.id);
-          
-          // INJECTION: Also ensure any missing standard activities (like Lição de Casa / Estímulo Motor) are added to existing semanarios
-          const nomesExistentes = novas.map(a => (a.nome || "").toLowerCase());
-          const extras = ATIVIDADES_PADRAO[tId] || [];
-          let finalAtvs = [...novas];
-          let mExtra = false;
-          
-          extras.forEach((ex: any) => {
-            const catName = ex.nome.split(":")[0].trim().toLowerCase();
-            const exists = nomesExistentes.some(n => {
-              const cn = n.split(":")[0].trim().toLowerCase();
-              return cn === catName;
-            });
-            if (!exists) {
-              finalAtvs.push(ex);
-              mExtra = true;
-            }
-          });
-
-          if (tId === "mini-maternal-azul") {
-            finalAtvs = finalAtvs.filter(a => !a.nome.toLowerCase().startsWith("motoca"));
-          }
-          if (tId === "1ano-azul") {
-            finalAtvs = finalAtvs.filter(a => !a.nome.toLowerCase().startsWith("caixa de brinquedos"));
-          }
-          if (tId === "5ano-azul" || tId === "6ano-azul") {
-            finalAtvs = finalAtvs.filter(a => {
-              const nl = a.nome.toLowerCase();
-              return !nl.startsWith("contação de história") &&
-                     !nl.startsWith("contacao de historia") &&
-                     !nl.startsWith("leitura de gibi") &&
-                     !nl.includes("roda quinta-feira");
-            });
-          }
-          
+          const finalAtvs = garantirAtividadesPadraoTurma(novas, tId);
           novasAtividades[tId] = finalAtvs;
-          if (mudou || mExtra) sMudou = true;
+          if (mudou || JSON.stringify(finalAtvs) !== JSON.stringify(s.atividades[tId])) sMudou = true;
         });
         if (sMudou) {
           globalMudou = true;
@@ -3168,49 +3163,9 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       const novasPadrao: any = {};
       Object.keys(prev || {}).forEach(tId => {
         const { novas: n1, mudou: m1 } = migrarNomes(prev[tId], tId);
-        
-        // Injeção de novas atividades padrão se não existirem
-        const nomesExistentes = n1.map(a => (a.nome || "").toLowerCase());
-        const extras = ATIVIDADES_PADRAO[tId] || [];
-        let finalAtvs = [...n1];
-        let m2 = false;
-
-        if (tId === "mini-maternal-azul") {
-          const antes = finalAtvs.length;
-          finalAtvs = finalAtvs.filter(a => !a.nome.toLowerCase().startsWith("motoca"));
-          if (finalAtvs.length !== antes) m2 = true;
-        }
-        if (tId === "1ano-azul") {
-          const antes = finalAtvs.length;
-          finalAtvs = finalAtvs.filter(a => !a.nome.toLowerCase().startsWith("caixa de brinquedos"));
-          if (finalAtvs.length !== antes) m2 = true;
-        }
-        if (tId === "5ano-azul" || tId === "6ano-azul") {
-          const antes = finalAtvs.length;
-          finalAtvs = finalAtvs.filter(a => {
-            const nl = a.nome.toLowerCase();
-            return !nl.startsWith("contação de história") &&
-                   !nl.startsWith("contacao de historia") &&
-                   !nl.startsWith("leitura de gibi") &&
-                   !nl.includes("roda quinta-feira");
-          });
-          if (finalAtvs.length !== antes) m2 = true;
-        }
-
-        extras.forEach((ex: any) => {
-          const catName = ex.nome.split(":")[0].trim().toLowerCase();
-          const exists = finalAtvs.some(a => {
-            const cn = (a.nome || "").split(":")[0].trim().toLowerCase();
-            return cn === catName;
-          });
-          if (!exists) {
-            finalAtvs.push(ex);
-            m2 = true;
-          }
-        });
-
+        const finalAtvs = garantirAtividadesPadraoTurma(n1, tId);
         novasPadrao[tId] = finalAtvs;
-        if (m1 || m2) globalMudou = true;
+        if (m1 || JSON.stringify(finalAtvs) !== JSON.stringify(prev[tId])) globalMudou = true;
       });
       return globalMudou ? novasPadrao : prev;
     });
@@ -3504,23 +3459,11 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       return;
     }
 
-    // Cria estrutura de turmas baseada na base de dados padronizada (ATIVIDADES_PADRAO) com categorias limpas e em ordem alfabética como modelo de documento
+    // Cria estrutura de turmas baseada estritamente no conjunto oficial de categorias padrão
     const atividadesLimpas: any = {};
+    const userEmail = (!guestMode && user?.email) ? user.email : "Local";
     turmas.forEach((t: any) => {
-      const base = (atividadesPadrao && atividadesPadrao[t.id] && atividadesPadrao[t.id].length > 0)
-        ? atividadesPadrao[t.id]
-        : (ATIVIDADES_PADRAO[t.id] || []);
-      atividadesLimpas[t.id] = base.map((a: any, index: number) => {
-        const catPura = a.nome.includes(":") ? a.nome.split(":")[0].trim() : a.nome.trim();
-        return {
-          id: a.id || `${t.id}_new_${index}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-          nome: `${catPura}:`,
-          descricao: "",
-          adiResponsavel: "",
-          monitoras: "",
-          criadoPorEmail: (!guestMode && user?.email) ? user.email : "Local"
-        };
-      });
+      atividadesLimpas[t.id] = garantirAtividadesPadraoTurma([], t.id, userEmail);
     });
 
     const temasTurmas: Record<string, string> = {};

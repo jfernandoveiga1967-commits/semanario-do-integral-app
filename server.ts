@@ -108,7 +108,7 @@ REGRAS DE EXTRAÇÃO E MAPEAMENTO:
    - ATENÇÃO A CONTINUIDADE DAS PÁGINAS: Se as atividades de uma turma continuam na página seguinte (ex: a atividade 'Psicomotricidade' no início da página 2 que vem logo antes do cabeçalho de uma nova turma), vincule essas atividades à turma que iniciou na página anterior ("mini-maternal-azul").
 
 3. EXTRAÇÃO DE ATIVIDADES DE CADA TURMA:
-   - Extraia TODAS as atividades/matérias presentes para cada turma no PDF (Devocional, Artes, Psicomotricidade, Contação de História, Lego, Projetos, Musica, Estímulo Motor, etc.).
+   - Extraia TODAS as atividades/matérias presentes para cada turma no PDF mantendo rigorosamente as categorias padrão oficiais (Devocional, Artes, Psicomotricidade, Contação de História, Lego, Projeto, Música, Estímulo Motor (Motoca), Lição de Casa, Caixa de Jogos, Balé, Judô, Coral, Flauta, Informática, Dança, Futebol, Ginástica, Natação, Quadra, Robótica, Roda de Música, Caixa de Brinquedos, Leitura de Gibi). NÃO invente novas categorias nem modifique a nomenclatura oficial.
    - Se o PDF contiver linhas de exemplo ou instruções genéricas (ex: "... (Insira as atividades da turma aqui)"), ignore-as e extraia apenas atividades reais e válidas.
 
 4. PADRONIZAÇÃO DO NOME E ESTRUTURAÇÃO DA DESCRIÇÃO COM PARÁGRAFOS SEPARADOS:
