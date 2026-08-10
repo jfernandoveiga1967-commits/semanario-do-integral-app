@@ -369,6 +369,7 @@ function obterCategoriaPura(nome: string): string {
   const catLower = cat.toLowerCase();
   if (catLower === "coral e canto") return "Coral";
   if (catLower === "como atividade" || catLower === "como atividade:" || catLower === "como_atividade") return "Atividade";
+  if (catLower === "roda de musica" || catLower === "roda de música" || catLower === "roda") return "Roda de Música";
   return cat;
 }
 
@@ -458,8 +459,10 @@ function formatarAtividadeUnica(a: any, turmaId?: string): any {
     "contação de história": "Contação de História",
     "contacao de historia": "Contação de História",
     "contar história": "Contação de História",
-    "rodas": "Rodas",
-    "roda": "Roda",
+    "roda de música": "Roda de Música",
+    "roda de musica": "Roda de Música",
+    "roda": "Roda de Música",
+    "rodas": "Roda de Música",
     "musicalização": "Musicalização",
     "musicalizacao": "Musicalização",
     "informática": "Informática",
@@ -2201,8 +2204,9 @@ export default function App() {
       "psicomotricidade": "Psicomotricidade",
       "culinaria": "Culinária",
       "musica": "Música",
-      "roda": "Roda",
-      "rodas": "Roda",
+      "rodademusica": "Roda de Música",
+      "roda": "Roda de Música",
+      "rodas": "Roda de Música",
       "musicalizacao": "Musicalização",
       "caixadebrinquedos": "Caixa de Brinquedos",
       "caixadejogos": "Caixa de Jogos",
@@ -3397,6 +3401,13 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
             itemMudou = true;
           }
 
+          if (novoNome.toLowerCase().startsWith("roda de música") || novoNome.toLowerCase().startsWith("roda de musica")) {
+            if (!novoNome.startsWith("Roda de Música")) {
+              novoNome = novoNome.replace(/^roda de m[úu]sica/i, "Roda de Música");
+              itemMudou = true;
+            }
+          }
+
           // Correção do Lego do 6º Ano para garantir o padrão com dois pontos "Lego:"
           if (tId === "6ano-azul" && (a.id === "6a12" || novoNome.toLowerCase() === "lego" || novoNome.toLowerCase().startsWith("lego"))) {
             if (!novoNome.includes(":")) {
@@ -3499,6 +3510,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       "Devocional",
       "Artes",
       "Música",
+      "Roda de Música",
       "Psicomotricidade",
       "Culinária",
       "Lego",
@@ -3549,7 +3561,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       "Quadra B", "QUADRA B", "quadra b", "Quadra", "QUADRA", "quadra",
       "Atividades", "ATIVIDADES", "Atividade", "atividade", "atividades",
       "Musicalização", "MUSICALIZAÇÃO", "Musicalizacao", "MUSICALIZACAO", "musicalização",
-      "Motoca", "MOTOCA", "motoca", "Estímulo Motor", "ESTÍMULO MOTOR", "Estímulo Motor (Motoca)", "ESTÍMULO MOTOR (MOTOCA)"
+      "Motoca", "MOTOCA", "motoca", "Estímulo Motor", "ESTÍMULO MOTOR", "Estímulo Motor (Motoca)", "ESTÍMULO MOTOR (MOTOCA)",
+      "Roda de música", "roda de música", "Roda de musica", "roda de musica", "Roda", "roda", "Rodas", "rodas"
     ];
     obsoletas.forEach(obs => base.delete(obs));
 
