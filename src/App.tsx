@@ -123,7 +123,8 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "i2-10", nome: "Música:",                descricao: "" },
     { id: "i2-11", nome: "Natação:",               descricao: "" },
     { id: "i2-13", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "i2-14", nome: "Projeto:",               descricao: "" }
+    { id: "i2-14", nome: "Projeto:",               descricao: "" },
+    { id: "i2-15", nome: "Roda de Música:",        descricao: "" }
   ],
   "1ano-azul": [
     { id: "1a0",  nome: "Artes:",                 descricao: "" },
