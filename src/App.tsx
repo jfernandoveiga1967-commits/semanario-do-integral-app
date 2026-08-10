@@ -362,7 +362,9 @@ function obterCategoriaPura(nome: string): string {
   if (!nome) return "Atividade";
   const parts = nome.includes(":") ? nome.split(":") : [nome];
   const cat = parts[0].trim();
-  if (cat.toLowerCase() === "coral e canto") return "Coral";
+  const catLower = cat.toLowerCase();
+  if (catLower === "coral e canto") return "Coral";
+  if (catLower === "como atividade" || catLower === "como atividade:" || catLower === "como_atividade") return "Atividade";
   return cat;
 }
 
@@ -490,12 +492,15 @@ function formatarAtividadeUnica(a: any, turmaId?: string): any {
     "atividades": "Atividades"
   };
 
-  let categoria = "Como Atividade";
+  let categoria = "Atividades";
   let tituloOriginal = novoNome;
 
   if (novoNome.includes(":")) {
     const parts = novoNome.split(":");
     categoria = parts[0].trim();
+    if (categoria.toLowerCase() === "como atividade" || categoria.toLowerCase() === "como_atividade") {
+      categoria = "Atividades";
+    }
     tituloOriginal = parts.slice(1).join(":").trim();
   } else {
     // Check if the entire name is one of the known category keys
@@ -4144,66 +4149,123 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
   const renderMarcaDaguaEPaginacao = (doc: any, sem: any) => {
     const pageCount = doc.getNumberOfPages();
-    const centerX = 105;
-    const centerY = 148;
 
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
 
-      // 1. Marca d'Água Sutil e Elegante no Fundo (Opacidade ~0.08 e Tom Cinza Sutil)
+      // 1. Marca d'Água Sutil e Lúdica: "Meninos e Meninas Brincando" no Fundo / Rodapé (~0.06 de Opacidade)
       try {
         if ((doc as any).GState) {
-          doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
+          doc.setGState(new (doc as any).GState({ opacity: 0.06 }));
         }
       } catch (e) {}
 
-      doc.setDrawColor(218, 225, 235);
-      doc.setTextColor(218, 225, 235);
+      doc.setDrawColor(180, 195, 215);
+      doc.setFillColor(180, 195, 215);
+      doc.setTextColor(180, 195, 215);
+      doc.setLineWidth(0.4);
 
-      // Selo Circular
-      doc.setLineWidth(0.7);
-      doc.circle(centerX, centerY, 52, 'S');
-      doc.setLineWidth(0.3);
-      doc.circle(centerX, centerY, 48, 'S');
-      doc.circle(centerX, centerY, 55, 'S');
+      // Sol suave no canto superior direito do fundo
+      doc.circle(185, 25, 10, 'S');
+      for (let angle = 0; angle < 360; angle += 45) {
+        const rad = (angle * Math.PI) / 180;
+        const x1 = 185 + Math.cos(rad) * 12;
+        const y1 = 25 + Math.sin(rad) * 12;
+        const x2 = 185 + Math.cos(rad) * 16;
+        const y2 = 25 + Math.sin(rad) * 16;
+        doc.line(x1, y1, x2, y2);
+      }
 
-      // Vetores de Ícones/Símbolos das Categorias Pedagógicas ao redor do Selo
-      // 1. Livro (Leitura / História 📖)
-      doc.rect(centerX - 6, centerY - 43, 5, 7);
-      doc.rect(centerX + 1, centerY - 43, 5, 7);
-      
-      // 2. Lápis / Escrita (✏️)
-      doc.line(centerX + 32, centerY - 25, centerX + 38, centerY - 19);
-      doc.line(centerX + 31, centerY - 24, centerX + 37, centerY - 18);
+      // Nuvens e Pássaros lúdicos no fundo
+      doc.circle(28, 30, 5, 'S');
+      doc.circle(34, 28, 6, 'S');
+      doc.circle(40, 30, 5, 'S');
+      doc.line(23, 33, 45, 33);
 
-      // 3. Música / Som (🎵)
-      doc.circle(centerX + 35, centerY + 25, 3, 'S');
-      doc.line(centerX + 38, centerY + 25, centerX + 38, centerY + 16);
+      doc.circle(125, 40, 4, 'S');
+      doc.circle(130, 38, 5, 'S');
+      doc.circle(135, 40, 4, 'S');
+      doc.line(121, 42, 139, 42);
 
-      // 4. Lego / Raciocínio Lógico (⚙️ / 🧩)
-      doc.rect(centerX - 4, centerY + 38, 8, 8);
-      doc.circle(centerX, centerY + 42, 2, 'S');
+      // Pássaros voando em "V"
+      doc.line(60, 22, 63, 25); doc.line(63, 25, 66, 22);
+      doc.line(70, 26, 73, 29); doc.line(73, 29, 76, 26);
+      doc.line(150, 32, 153, 35); doc.line(153, 35, 156, 32);
 
-      // 5. Artes / Expressão Plástica (🎨)
-      doc.circle(centerX - 35, centerY + 24, 4, 'S');
+      // Linha do Chão / Colina Lúdica no Rodapé
+      doc.setLineWidth(0.5);
+      doc.line(10, 275, 200, 275); // Gramado base
 
-      // 6. Estrela / Estímulo Motor / Brincadeiras (⭐️)
-      doc.line(centerX - 35, centerY - 25, centerX - 31, centerY - 21);
-      doc.line(centerX - 31, centerY - 25, centerX - 35, centerY - 21);
+      // Flores ao longo do chão
+      const flowerXs = [20, 60, 105, 145, 188];
+      flowerXs.forEach(fx => {
+        doc.line(fx, 275, fx, 271);
+        doc.circle(fx, 270, 1.2, 'S');
+        doc.circle(fx - 1.2, 270, 0.8, 'S');
+        doc.circle(fx + 1.2, 270, 0.8, 'S');
+        doc.circle(fx, 268.8, 0.8, 'S');
+        doc.circle(fx, 271.2, 0.8, 'S');
+      });
 
-      // Texto da Marca d'Água Central
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(21);
-      doc.text("SEMANÁRIO INTEGRAL", centerX, centerY - 7, { align: "center" });
+      // Tufos de Grama
+      const grassXs = [12, 38, 75, 118, 158, 195];
+      grassXs.forEach(gx => {
+        doc.line(gx, 275, gx - 1.5, 272);
+        doc.line(gx, 275, gx, 271);
+        doc.line(gx, 275, gx + 1.5, 272);
+      });
 
-      doc.setFontSize(8.5);
-      doc.text("• APRENDIZADO  •  ESTÍMULO  •  DESENVOLVIMENTO •", centerX, centerY + 3, { align: "center" });
+      // --- ILUSTRAÇÃO: MENINOS E MENINAS BRINCANDO (BAMBOLÊ, BOLA E CORDA) ---
 
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
-      doc.text("DOCUMENTO PEDAGÓGICO OFICIAL", centerX, centerY + 11, { align: "center" });
+      // 1. Menina Brincando com Bambolê (Esquerda: x = 35)
+      doc.circle(35, 260, 2.5, 'S'); // Cabeça
+      doc.line(33, 259, 30, 261); doc.line(37, 259, 40, 261); // Marias-chiquinhas
+      doc.line(35, 262.5, 32, 269); doc.line(32, 269, 38, 269); doc.line(38, 269, 35, 262.5); // Vestidinho
+      doc.line(35, 264, 27, 262); doc.line(35, 264, 43, 262); // Braços de equilíbrio abertos
+      doc.line(33.5, 269, 32, 274); doc.line(36.5, 269, 38, 274); // Pernas firmes
+      try {
+        doc.ellipse(35, 266, 9, 2.5, 'S'); // Bambolê na cintura
+      } catch (e) {
+        doc.circle(35, 266, 6, 'S');
+      }
 
-      // Restaurar Opacidade Normal (1.0) para os textos e rodapé
+      // 2. Menino Chutando Bola de Futebol (Centro-Esquerda: x = 85)
+      doc.circle(85, 259, 2.5, 'S'); // Cabeça
+      doc.line(83, 257.5, 88, 257.5); doc.line(87, 257.5, 89, 258.5); // Boné
+      doc.line(85, 261.5, 85, 268); // Tronco
+      doc.line(85, 263, 80, 266); doc.line(85, 263, 91, 262); // Braços
+      doc.line(85, 268, 81, 274); doc.line(85, 268, 91, 271); // Pernas chutando
+      doc.circle(96, 270, 3, 'S'); // Bola de Futebol
+      doc.line(94, 270, 98, 270); doc.line(96, 268, 96, 272); // Traços da bola
+      doc.line(91, 271, 92.5, 270.8); // Traço de movimento
+
+      // 3. Menina Pulando Corda (Centro-Direita: x = 135)
+      doc.circle(135, 257, 2.5, 'S'); // Cabeça
+      doc.line(136.5, 256, 140, 254); // Rabo de cavalo
+      doc.line(135, 259.5, 132, 266); doc.line(132, 266, 138, 266); doc.line(138, 266, 135, 259.5); // Vestidinho
+      doc.line(133.5, 262, 126, 264); doc.line(136.5, 262, 144, 264); // Braços segurando corda
+      doc.line(126, 264, 127, 249); doc.line(127, 249, 135, 246); doc.line(135, 246, 143, 249); doc.line(143, 249, 144, 264); // Arco da Corda
+      doc.line(133.5, 266, 133, 271); doc.line(136.5, 266, 137, 271); // Pernas no ar
+
+      // 4. Menino Girando Bambolê no Braço (Direita: x = 175)
+      doc.circle(175, 259, 2.5, 'S'); // Cabeça
+      doc.line(174, 256.5, 173.5, 255); doc.line(175, 256.5, 175, 254.5); doc.line(176, 256.5, 176.5, 255); // Cabelo espetadinho
+      doc.line(175, 261.5, 175, 268); // Tronco
+      doc.line(175, 263, 181, 258); // Braço estendido
+      doc.line(175, 263, 169, 265); // Outro braço
+      try {
+        doc.ellipse(181, 258, 2.5, 6, 'S'); // Bambolê no braço
+      } catch (e) {
+        doc.circle(181, 258, 4, 'S');
+      }
+      doc.line(175, 268, 171, 274); doc.line(175, 268, 179, 274); // Pernas correndo
+
+      // Legenda sutil no rodapé lúdico
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7.5);
+      doc.text("Semanário Integral • Desenvolvimento & Aprendizado Lúdico", 105, 280, { align: "center" });
+
+      // Restaurar Opacidade Normal (1.0) para os textos e rodapé de navegação
       try {
         if ((doc as any).GState) {
           doc.setGState(new (doc as any).GState({ opacity: 1.0 }));
@@ -4214,8 +4276,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.5);
       doc.setTextColor(100, 116, 139); // Slate-500
-      doc.text(`Semanário Integral - Semana ${sem.numero} (${sem.periodo})`, 14, 287);
-      doc.text(`Página ${i} de ${pageCount}`, 196, 287, { align: "right" });
+      doc.text(`Semanário Integral - Semana ${sem.numero} (${sem.periodo})`, 14, 288);
+      doc.text(`Página ${i} de ${pageCount}`, 196, 288, { align: "right" });
     }
   };
 
