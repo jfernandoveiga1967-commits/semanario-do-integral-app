@@ -87,13 +87,13 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "mm4",  nome: "Contação de História:",  descricao: "" },
     { id: "mm5",  nome: "Culinária:",             descricao: "" },
     { id: "mm6",  nome: "Devocional:",            descricao: "" },
-    { id: "mm7",  nome: "Estímulo Motor (Motoca):", descricao: "" },
     { id: "mm8",  nome: "Judô:",                  descricao: "" },
     { id: "mm9",  nome: "Lego:",                  descricao: "" },
     { id: "mm10", nome: "Música:",                descricao: "" },
     { id: "mm11", nome: "Natação:",               descricao: "" },
     { id: "mm13", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "mm14", nome: "Roda de Música:",        descricao: "" }
+    { id: "mm14", nome: "Roda de Música:",        descricao: "" },
+    { id: "mm15", nome: "Projeto:",               descricao: "" }
   ],
   "infantil1-azul": [
     { id: "i1-1",  nome: "Artes:",                 descricao: "" },
@@ -107,7 +107,8 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "i1-9",  nome: "Música:",                descricao: "" },
     { id: "i1-10", nome: "Natação:",               descricao: "" },
     { id: "i1-12", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "i1-13", nome: "Roda de Música:",        descricao: "" }
+    { id: "i1-13", nome: "Roda de Música:",        descricao: "" },
+    { id: "i1-14", nome: "Projeto:",               descricao: "" }
   ],
   "infantil2-azul": [
     { id: "i2-1",  nome: "Artes:",                 descricao: "" },
@@ -121,7 +122,8 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "i2-9",  nome: "Lição de Casa:",         descricao: "" },
     { id: "i2-10", nome: "Música:",                descricao: "" },
     { id: "i2-11", nome: "Natação:",               descricao: "" },
-    { id: "i2-13", nome: "Psicomotricidade:",      descricao: "" }
+    { id: "i2-13", nome: "Psicomotricidade:",      descricao: "" },
+    { id: "i2-14", nome: "Projeto:",               descricao: "" }
   ],
   "1ano-azul": [
     { id: "1a0",  nome: "Artes:",                 descricao: "" },
@@ -253,6 +255,7 @@ function obterCategoriaPuraKey(nome: string): string {
   if (base.startsWith("robotica")) return "robotica";
   if (base.startsWith("leitura de gibi")) return "leitura de gibi";
   if (base.startsWith("psicomotricidade")) return "psicomotricidade";
+  if (base.startsWith("projeto")) return "projeto";
   
   return base;
 }
@@ -488,6 +491,8 @@ function formatarAtividadeUnica(a: any, turmaId?: string): any {
     "licao de casa - historia": "Lição de Casa - História",
     "lição de casa - geografia": "Lição de Casa - Geografia",
     "licao de casa - geografia": "Lição de Casa - Geografia",
+    "projeto": "Projeto",
+    "projetos": "Projeto",
     "atividade": "Atividades",
     "atividades": "Atividades"
   };
@@ -2223,6 +2228,8 @@ export default function App() {
       "licaodecasaciencias": "Lição de Casa - Ciências",
       "licaodecasahistoria": "Lição de Casa - História",
       "licaodecasageografia": "Lição de Casa - Geografia",
+      "projeto": "Projeto",
+      "projetos": "Projeto",
       "atividades": "Atividades"
     };
 
@@ -3323,8 +3330,11 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
       let novas = listaAtvs
         .filter(a => {
-          // Remove Motoca do Infantil 1 e 2
-          if ((tId === "infantil1-azul" || tId === "infantil2-azul") && a.nome?.startsWith("Motoca")) {
+          // Remove Motoca / Estímulo Motor do Mini Maternal, Infantil 1 e 2
+          if (
+            (tId === "mini-maternal-azul" || tId === "infantil1-azul" || tId === "infantil2-azul") &&
+            (a.nome?.toLowerCase().includes("motoca") || a.nome?.toLowerCase().includes("estímulo motor") || a.nome?.toLowerCase().includes("estimulo motor"))
+          ) {
             mudou = true;
             return false;
           }
@@ -3500,8 +3510,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       "Caixa de Brinquedos",
       "Caixa de Jogos",
       "Leitura de Gibi",
-      "Motoca",
-      "Lição de Casa"
+      "Lição de Casa",
+      "Projeto"
     ]);
 
     if (ATIVIDADES) {
@@ -3535,11 +3545,10 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       "Coral e Canto", "CORAL E CANTO", "Coral e canto",
       "Como atividade", "COMO ATIVIDADE", "Como Atividade", "como atividade",
       "Educação Física", "EDUCAÇÃO FÍSICA", "Educacao Fisica", "EDUCAÇÃO FISICA", "educação física",
-      "Projeto Extra", "PROJETO EXTRA", "Projeto extra", "projeto extra",
-      "Projetos", "PROJETOS", "projetos", "Projeto", "PROJETO", "projeto",
       "Quadra B", "QUADRA B", "quadra b", "Quadra", "QUADRA", "quadra",
       "Atividades", "ATIVIDADES", "Atividade", "atividade", "atividades",
-      "Musicalização", "MUSICALIZAÇÃO", "Musicalizacao", "MUSICALIZACAO", "musicalização"
+      "Musicalização", "MUSICALIZAÇÃO", "Musicalizacao", "MUSICALIZACAO", "musicalização",
+      "Motoca", "MOTOCA", "motoca", "Estímulo Motor", "ESTÍMULO MOTOR", "Estímulo Motor (Motoca)", "ESTÍMULO MOTOR (MOTOCA)"
     ];
     obsoletas.forEach(obs => base.delete(obs));
 
