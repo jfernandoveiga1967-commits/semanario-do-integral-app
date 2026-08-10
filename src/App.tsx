@@ -56,7 +56,11 @@ import {
   Shield,
   BookOpen,
   Check,
-  Filter
+  Filter,
+  FileUp,
+  Hourglass,
+  Share2,
+  Upload
 } from "lucide-react";
 
 // ── Função de ícone removida (usuário pediu para limpar) ──────────────────
@@ -634,6 +638,25 @@ export const isDocenteRole = (role?: string): boolean => {
   const r = role.toLowerCase().trim();
   return r === "auxiliar" || r === "teacher" || r === "professor" || r === "docente";
 };
+
+export interface PdfItem {
+  id: string;
+  turmaId: string;
+  nome: string;
+  tamanho: string;
+  dataUpload: string;
+  dataUrl: string;
+  descricao?: string;
+  status: 'pendente' | 'em_andamento' | 'concluido';
+}
+
+export function formatarTamanhoBytes(bytes: number): string {
+  if (!bytes || bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+}
 
 export interface AtribuicaoUsuario {
   id: string;
@@ -1350,6 +1373,25 @@ export default function App() {
   const [registros, _setRegistros]     = useState(() => loadLocal("semanario_registros", {}));
   const [formData, setFormData]       = useState<any>({});
   const [midias, _setMidias]           = useState(() => loadLocal("semanario_midias", {}));
+  const [pdfsPorAtividade, _setPdfsPorAtividade] = useState<Record<string, PdfItem[]>>(() => loadLocal("semanario_pdfs_atividades", {}));
+
+  // Estados do Repositório de PDFs por Atividade
+  const [modalRepoPdf, setModalRepoPdf] = useState(false);
+  const [atividadePdfAtiva, setAtividadePdfAtiva] = useState<{ turma: any; atividade: any } | null>(null);
+  const [pdfDescricaoInput, setPdfDescricaoInput] = useState("");
+  const [pdfStatusInput, setPdfStatusInput] = useState<'pendente' | 'em_andamento' | 'concluido'>("pendente");
+  const [buscaPdf, setBuscaPdf] = useState("");
+  const [filtroStatusPdf, setFiltroStatusPdf] = useState<"todos" | "pendente" | "em_andamento" | "concluido">("todos");
+  const [pdfEditando, setPdfEditando] = useState<PdfItem | null>(null);
+
+  const [modalCopiarPdf, setModalCopiarPdf] = useState(false);
+  const [pdfParaCopiar, setPdfParaCopiar] = useState<PdfItem | null>(null);
+  const [turmasDestinoPdf, setTurmasDestinoPdf] = useState<string[]>([]);
+
+  const getAtividadeKey = (turmaId: string, atv: any) => {
+    if (!turmaId || !atv) return "";
+    return `${turmaId}_${atv.id || atv.nome}`;
+  };
 
   const [filtroCascata, setFiltroCascata]           = useState<"todas" | "planejadas" | "pendentes">("todas");
   const [buscaCascata, setBuscaCascata]             = useState("");
@@ -1390,6 +1432,158 @@ export default function App() {
       }
       return next;
     });
+  };
+
+  const setPdfsPorAtividade = (val: any) => {
+    _setPdfsPorAtividade((prev: any) => {
+      const next = typeof val === "function" ? val(prev) : val;
+      try {
+        localStorage.setItem("semanario_pdfs_atividades", JSON.stringify(next));
+      } catch (e) {
+        console.warn("Erro ao salvar no localStorage:", e);
+      }
+      const currentUser = auth.currentUser;
+      if ((currentUser || user) && !guestMode && !isSyncingFromCloud.current) {
+        const cleaned = JSON.parse(JSON.stringify(next));
+        setDoc(doc(db, "config", "pdfs_atividades"), { data: cleaned }).catch(e => handleFirestoreError(e, "pdfs_atividades"));
+      }
+      return next;
+    });
+  };
+
+  // Handlers para o Repositório de PDFs por Atividade
+  const handleUploadPdf = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast$("Por favor, selecione um arquivo em formato PDF.", "erro");
+      return;
+    }
+    if (!atividadePdfAtiva?.turma || !atividadePdfAtiva?.atividade) return;
+
+    const key = getAtividadeKey(atividadePdfAtiva.turma.id, atividadePdfAtiva.atividade);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const novoPdf: PdfItem = {
+        id: `pdf-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        turmaId: atividadePdfAtiva.turma.id,
+        atividadeId: atividadePdfAtiva.atividade.id,
+        nome: file.name,
+        tamanho: formatarTamanhoBytes(file.size),
+        dataUpload: new Date().toLocaleDateString("pt-BR") + " " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        dataUrl: dataUrl,
+        descricao: pdfDescricaoInput.trim() || undefined,
+        status: pdfStatusInput
+      };
+
+      setPdfsPorAtividade((prev: Record<string, PdfItem[]>) => {
+        const listaAtual = prev[key] || [];
+        return {
+          ...prev,
+          [key]: [novoPdf, ...listaAtual]
+        };
+      });
+
+      setPdfDescricaoInput("");
+      setPdfStatusInput("pendente");
+      if (e.target) e.target.value = "";
+      const tituloAtv = obterTituloPuro(atividadePdfAtiva.atividade.nome);
+      toast$(`PDF "${file.name}" vinculado com sucesso à atividade "${tituloAtv}"!`);
+    };
+
+    reader.onerror = () => {
+      toast$("Erro ao carregar o arquivo PDF.", "erro");
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleBaixarPdf = (pdf: PdfItem) => {
+    try {
+      const a = document.createElement("a");
+      a.href = pdf.dataUrl;
+      a.download = pdf.nome.toLowerCase().endsWith(".pdf") ? pdf.nome : `${pdf.nome}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast$(`Download do PDF "${pdf.nome}" iniciado!`);
+    } catch (err) {
+      console.error("Erro ao baixar PDF:", err);
+      toast$("Não foi possível realizar o download do PDF.", "erro");
+    }
+  };
+
+  const handleExcluirPdf = (pdfId: string, pdfNome: string) => {
+    if (!atividadePdfAtiva?.turma || !atividadePdfAtiva?.atividade) return;
+    const key = getAtividadeKey(atividadePdfAtiva.turma.id, atividadePdfAtiva.atividade);
+    setPdfsPorAtividade((prev: Record<string, PdfItem[]>) => {
+      const listaAtual = prev[key] || [];
+      return {
+        ...prev,
+        [key]: listaAtual.filter(p => p.id !== pdfId)
+      };
+    });
+    toast$(`PDF "${pdfNome}" removido.`);
+  };
+
+  const handleAlternarStatusPdf = (pdfId: string, novoStatus: 'pendente' | 'em_andamento' | 'concluido') => {
+    if (!atividadePdfAtiva?.turma || !atividadePdfAtiva?.atividade) return;
+    const key = getAtividadeKey(atividadePdfAtiva.turma.id, atividadePdfAtiva.atividade);
+    setPdfsPorAtividade((prev: Record<string, PdfItem[]>) => {
+      const listaAtual = prev[key] || [];
+      return {
+        ...prev,
+        [key]: listaAtual.map(p => p.id === pdfId ? { ...p, status: novoStatus } : p)
+      };
+    });
+    toast$("Status do PDF atualizado!");
+  };
+
+  const handleSalvarEdicaoPdf = () => {
+    if (!pdfEditando || !atividadePdfAtiva?.turma || !atividadePdfAtiva?.atividade) return;
+    const key = getAtividadeKey(atividadePdfAtiva.turma.id, atividadePdfAtiva.atividade);
+    setPdfsPorAtividade((prev: Record<string, PdfItem[]>) => {
+      const listaAtual = prev[key] || [];
+      return {
+        ...prev,
+        [key]: listaAtual.map(p => p.id === pdfEditando.id ? pdfEditando : p)
+      };
+    });
+    setPdfEditando(null);
+    toast$("Informações do PDF atualizadas com sucesso!");
+  };
+
+  const handleAbrirCopiarPdf = (pdf: PdfItem) => {
+    setPdfParaCopiar(pdf);
+    setTurmasDestinoPdf([]);
+    setModalCopiarPdf(true);
+  };
+
+  const handleExecutarCopiaPdf = () => {
+    if (!pdfParaCopiar || turmasDestinoPdf.length === 0 || !atividadePdfAtiva?.atividade) return;
+
+    setPdfsPorAtividade((prev: Record<string, PdfItem[]>) => {
+      const next = { ...prev };
+      turmasDestinoPdf.forEach(destTurmaId => {
+        const destKey = getAtividadeKey(destTurmaId, atividadePdfAtiva.atividade);
+        const listaDest = next[destKey] || [];
+        const copiado: PdfItem = {
+          ...pdfParaCopiar,
+          id: `pdf-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          turmaId: destTurmaId,
+          dataUpload: new Date().toLocaleDateString("pt-BR") + " " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+        };
+        next[destKey] = [copiado, ...listaDest];
+      });
+      return next;
+    });
+
+    setModalCopiarPdf(false);
+    setPdfParaCopiar(null);
+    setTurmasDestinoPdf([]);
+    toast$(`PDF copiado com sucesso para ${turmasDestinoPdf.length} turma(s)!`);
   };
 
   const setAtividadesPadrao = (val: any) => {
@@ -1706,7 +1900,17 @@ export default function App() {
             handleFirestoreError(error, "atividades cloud");
           });
 
-          activeUnsubscribers.current = [unsubUser, unsubSem, unsubReg, unsubMid, unsubTurmas, unsubAtvs];
+          const unsubPdfs = onSnapshot(doc(db, "config", "pdfs_atividades"), (docSnap) => {
+            isSyncingFromCloud.current = true;
+            if (docSnap.exists() && docSnap.data().data) {
+              _setPdfsPorAtividade(docSnap.data().data);
+            }
+            isSyncingFromCloud.current = false;
+          }, (error) => {
+            handleFirestoreError(error, "pdfs_atividades cloud");
+          });
+
+          activeUnsubscribers.current = [unsubUser, unsubSem, unsubReg, unsubMid, unsubTurmas, unsubAtvs, unsubPdfs];
         } catch (e) {
           handleFirestoreError(e, "sincronização Firebase");
         } finally {
@@ -1724,6 +1928,7 @@ export default function App() {
         _setSemanarios(localSem);
         _setRegistros(loadLocal("semanario_registros", {}));
         _setMidias(loadLocal("semanario_midias", {}));
+        _setPdfsPorAtividade(loadLocal("semanario_pdfs_atividades", {}));
       }
     });
 
@@ -5253,6 +5458,573 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
         )}
       </AnimatePresence>
 
+      {/* Modal Repositório de PDFs da Atividade */}
+      <AnimatePresence>
+        {modalRepoPdf && atividadePdfAtiva?.turma && atividadePdfAtiva?.atividade && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-[3000] flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Cabeçalho do Modal */}
+              <div className="bg-slate-900 p-5 text-white flex items-center justify-between gap-3 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-red-500/20 border border-red-400/30 flex items-center justify-center text-red-400 shrink-0">
+                    <FileUp className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-base leading-tight flex items-center gap-2">
+                      Repositório de PDFs da Atividade
+                    </h3>
+                    <p className="text-xs text-slate-300 mt-0.5 flex items-center gap-2 flex-wrap font-medium">
+                      <span>{obterCategoriaPura(atividadePdfAtiva.atividade.nome)} - <strong className="text-white">{obterTituloPuro(atividadePdfAtiva.atividade.nome)}</strong></span>
+                      <span className="font-extrabold px-2 py-0.5 rounded-md text-[10px]" style={{ backgroundColor: atividadePdfAtiva.turma.cor + "30", color: "#FFFFFF" }}>
+                        {atividadePdfAtiva.turma.label}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalRepoPdf(false)}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Corpo do Modal */}
+              <div className="p-5 overflow-y-auto space-y-5 flex-1">
+
+                {/* Área de Upload de PDF */}
+                <div className="bg-slate-50 border-2 border-dashed border-red-200 hover:border-red-400 rounded-2xl p-4 transition-all">
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    <label className="flex-1 w-full flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-red-50/50 hover:border-red-300 transition-all text-center group">
+                      <FileUp className="w-6 h-6 text-red-500 group-hover:scale-110 transition-transform mb-1" />
+                      <span className="text-xs font-black text-slate-700">Anexar Arquivo PDF</span>
+                      <span className="text-[10px] text-slate-400 mt-0.5">Clique para buscar no seu dispositivo (.pdf)</span>
+                      <input
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        onChange={handleUploadPdf}
+                        className="hidden"
+                      />
+                    </label>
+
+                    <div className="w-full sm:w-auto flex-1 space-y-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Descrição / Detalhes (Opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={pdfDescricaoInput}
+                          onChange={(e) => setPdfDescricaoInput(e.target.value)}
+                          placeholder="Ex: Instrução de aplicação desta atividade..."
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-red-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                          Status Inicial de Execução
+                        </label>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setPdfStatusInput("pendente")}
+                            className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                              pdfStatusInput === "pendente"
+                                ? "bg-amber-500 text-white shadow-xs"
+                                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            <Hourglass className="w-3 h-3" /> Pendente
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPdfStatusInput("em_andamento")}
+                            className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                              pdfStatusInput === "em_andamento"
+                                ? "bg-blue-600 text-white shadow-xs"
+                                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            <RefreshCw className="w-3 h-3" /> Em Andamento
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPdfStatusInput("concluido")}
+                            className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                              pdfStatusInput === "concluido"
+                                ? "bg-emerald-600 text-white shadow-xs"
+                                : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-100"
+                            }`}
+                          >
+                            <CheckCircle2 className="w-3 h-3" /> Concluído
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Busca e Filtros de PDFs */}
+                <div className="space-y-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={buscaPdf}
+                        onChange={(e) => setBuscaPdf(e.target.value)}
+                        placeholder="Buscar PDF por nome ou detalhes..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-red-500"
+                      />
+                      {buscaPdf && (
+                        <button
+                          type="button"
+                          onClick={() => setBuscaPdf("")}
+                          className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-0.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setFiltroStatusPdf("todos")}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer ${
+                          filtroStatusPdf === "todos" ? "bg-white text-slate-800 shadow-xs" : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        Todos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFiltroStatusPdf("pendente")}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                          filtroStatusPdf === "pendente" ? "bg-amber-500 text-white shadow-xs" : "text-amber-700 hover:bg-amber-50"
+                        }`}
+                      >
+                        <Hourglass className="w-3 h-3" /> ⏳
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFiltroStatusPdf("em_andamento")}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                          filtroStatusPdf === "em_andamento" ? "bg-blue-600 text-white shadow-xs" : "text-blue-700 hover:bg-blue-50"
+                        }`}
+                      >
+                        <RefreshCw className="w-3 h-3" /> 🔄
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFiltroStatusPdf("concluido")}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-1 ${
+                          filtroStatusPdf === "concluido" ? "bg-emerald-600 text-white shadow-xs" : "text-emerald-700 hover:bg-emerald-50"
+                        }`}
+                      >
+                        <CheckCircle2 className="w-3 h-3" /> ✅
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lista de PDFs */}
+                <div className="space-y-2.5">
+                  {(() => {
+                    const activeKey = getAtividadeKey(atividadePdfAtiva.turma.id, atividadePdfAtiva.atividade);
+                    const todosPdfs = pdfsPorAtividade[activeKey] || [];
+                    const filtrados = todosPdfs.filter((pdf) => {
+                      const matchBusca = !buscaPdf.trim() || 
+                        pdf.nome.toLowerCase().includes(buscaPdf.toLowerCase()) || 
+                        (pdf.descricao && pdf.descricao.toLowerCase().includes(buscaPdf.toLowerCase()));
+                      
+                      const matchStatus = filtroStatusPdf === "todos" || pdf.status === filtroStatusPdf;
+                      return matchBusca && matchStatus;
+                    });
+
+                    if (todosPdfs.length === 0) {
+                      return (
+                        <div className="text-center py-8 bg-slate-50 border border-slate-200 rounded-2xl p-6">
+                          <FileUp className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                          <p className="text-xs font-extrabold text-slate-700">Nenhum PDF vinculado a esta atividade</p>
+                          <p className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
+                            Faça o upload do documento PDF para anexar material de apoio específico a esta atividade pedagógica!
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    if (filtrados.length === 0) {
+                      return (
+                        <div className="text-center py-6 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                          <p className="text-xs font-bold text-slate-500">Nenhum PDF encontrado com os filtros selecionados.</p>
+                        </div>
+                      );
+                    }
+
+                    return filtrados.map((pdf) => {
+                      return (
+                        <div
+                          key={pdf.id}
+                          className="bg-white border border-slate-200 hover:border-slate-300 rounded-2xl p-3.5 shadow-2xs hover:shadow-xs transition-all space-y-2.5"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                              <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-red-600 shrink-0 mt-0.5">
+                                <FileText className="w-5 h-5" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-extrabold text-xs text-slate-800 break-words leading-snug">
+                                  {pdf.nome}
+                                </h4>
+                                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 font-medium">
+                                  <span>{pdf.tamanho}</span>
+                                  <span>•</span>
+                                  <span>{pdf.dataUpload}</span>
+                                </div>
+                                {pdf.descricao && (
+                                  <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg mt-1.5 border border-slate-100 font-normal">
+                                    {pdf.descricao}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Selector de Status de Execução */}
+                            <div className="shrink-0 flex flex-col items-end gap-1">
+                              <span className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider">Status:</span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAlternarStatusPdf(pdf.id, "pendente")}
+                                  className={`p-1 rounded-md text-[10px] font-bold border transition-all cursor-pointer ${
+                                    pdf.status === "pendente"
+                                      ? "bg-amber-100 text-amber-900 border-amber-300 font-extrabold shadow-2xs"
+                                      : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-amber-50"
+                                  }`}
+                                  title="Marcar como Pendente"
+                                >
+                                  ⏳
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAlternarStatusPdf(pdf.id, "em_andamento")}
+                                  className={`p-1 rounded-md text-[10px] font-bold border transition-all cursor-pointer ${
+                                    pdf.status === "em_andamento"
+                                      ? "bg-blue-100 text-blue-900 border-blue-300 font-extrabold shadow-2xs"
+                                      : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-blue-50"
+                                  }`}
+                                  title="Marcar como Em Andamento"
+                                >
+                                  🔄
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAlternarStatusPdf(pdf.id, "concluido")}
+                                  className={`p-1 rounded-md text-[10px] font-bold border transition-all cursor-pointer ${
+                                    pdf.status === "concluido"
+                                      ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-extrabold shadow-2xs"
+                                      : "bg-slate-50 text-slate-400 border-slate-200 hover:bg-emerald-50"
+                                  }`}
+                                  title="Marcar como Concluído"
+                                >
+                                  ✅
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Ações Contextuais do PDF */}
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap text-[11px]">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {/* Copiar para outras turmas */}
+                              <button
+                                type="button"
+                                onClick={() => handleAbrirCopiarPdf(pdf)}
+                                className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                                title="Copiar este PDF para a mesma atividade em outras turmas"
+                              >
+                                <Copy className="w-3.5 h-3.5 text-indigo-600" />
+                                <span>Copiar p/ turmas</span>
+                              </button>
+
+                              {/* Baixar */}
+                              <button
+                                type="button"
+                                onClick={() => handleBaixarPdf(pdf)}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                                title="Baixar arquivo PDF"
+                              >
+                                <Download className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Baixar</span>
+                              </button>
+
+                              {/* Editar detalhes */}
+                              <button
+                                type="button"
+                                onClick={() => setPdfEditando(pdf)}
+                                className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center gap-1 transition-all cursor-pointer active:scale-95"
+                                title="Editar nome ou detalhes"
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-slate-500" />
+                                <span>Editar</span>
+                              </button>
+                            </div>
+
+                            {/* Lixeira (Excluir) */}
+                            <button
+                              type="button"
+                              onClick={() => handleExcluirPdf(pdf.id, pdf.nome)}
+                              className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold flex items-center gap-1 transition-all cursor-pointer active:scale-95 ml-auto"
+                              title="Excluir este PDF da atividade"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Excluir</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              {/* Rodapé do Modal */}
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
+                <span className="text-xs text-slate-500 font-medium">
+                  Total de PDFs nesta atividade: <strong className="text-slate-800">{(pdfsPorAtividade[getAtividadeKey(atividadePdfAtiva.turma.id, atividadePdfAtiva.atividade)] || []).length}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setModalRepoPdf(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold text-xs transition-all cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sub-modal: Editar Detalhes do PDF */}
+      <AnimatePresence>
+        {pdfEditando && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-[3500] flex items-center justify-center p-4 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h4 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
+                  <Pencil className="w-4 h-4 text-blue-600" /> Editar PDF da Turma
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setPdfEditando(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Nome do Arquivo / Título</label>
+                  <input
+                    type="text"
+                    value={pdfEditando.nome}
+                    onChange={(e) => setPdfEditando({ ...pdfEditando, nome: e.target.value })}
+                    className="w-full border-2 border-slate-100 rounded-xl p-2.5 text-xs text-slate-800 focus:border-blue-500 outline-none font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Descrição / Detalhes</label>
+                  <textarea
+                    rows={3}
+                    value={pdfEditando.descricao || ""}
+                    onChange={(e) => setPdfEditando({ ...pdfEditando, descricao: e.target.value })}
+                    placeholder="Escreva detalhes ou orientações sobre este PDF..."
+                    className="w-full border-2 border-slate-100 rounded-xl p-2.5 text-xs text-slate-800 focus:border-blue-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Status de Execução</label>
+                  <select
+                    value={pdfEditando.status}
+                    onChange={(e) => setPdfEditando({ ...pdfEditando, status: e.target.value as any })}
+                    className="w-full border-2 border-slate-100 rounded-xl p-2.5 text-xs font-bold text-slate-800 focus:border-blue-500 outline-none"
+                  >
+                    <option value="pendente">⏳ Pendente</option>
+                    <option value="em_andamento">🔄 Em Andamento</option>
+                    <option value="concluido">✅ Concluído</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setPdfEditando(null)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-xs transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSalvarEdicaoPdf}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md active:scale-95"
+                >
+                  Salvar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sub-modal: Copiar PDF para Outras Turmas */}
+      <AnimatePresence>
+        {modalCopiarPdf && pdfParaCopiar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-[3500] flex items-center justify-center p-4 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-5 w-full max-w-lg shadow-2xl space-y-4 max-h-[90vh] flex flex-col"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                    <Copy className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-slate-800 text-sm">Copiar PDF para Outras Turmas</h4>
+                    <p className="text-[10px] text-slate-400 truncate max-w-xs">{pdfParaCopiar.nome}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalCopiarPdf(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-3 flex-1 overflow-y-auto">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-500 uppercase">Selecione as Turmas de Destino:</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const outras = turmas.filter(t => t.id !== turmaPdfAtiva?.id).map(t => t.id);
+                        setTurmasDestinoPdf(outras);
+                      }}
+                      className="text-[10px] text-indigo-600 font-bold hover:underline"
+                    >
+                      Selecionar Todas
+                    </button>
+                    <span className="text-slate-300 text-[10px]">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setTurmasDestinoPdf([])}
+                      className="text-[10px] text-rose-600 font-bold hover:underline"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto p-1">
+                  {ordenarTurmas(turmas).map((t) => {
+                    if (t.id === turmaPdfAtiva?.id) return null;
+                    const isSel = turmasDestinoPdf.includes(t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSel) {
+                            setTurmasDestinoPdf(prev => prev.filter(tid => tid !== t.id));
+                          } else {
+                            setTurmasDestinoPdf(prev => [...prev, t.id]);
+                          }
+                        }}
+                        className={`flex items-center gap-2.5 p-2.5 rounded-xl border-2 text-left transition-all cursor-pointer ${
+                          isSel ? "bg-indigo-50/60 border-indigo-500 shadow-2xs" : "bg-slate-50 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        <div
+                          className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                            isSel ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300 bg-white"
+                          }`}
+                        >
+                          {isSel && (
+                            <svg className="w-2.5 h-2.5 fill-none stroke-current stroke-[3px]" viewBox="0 0 24 24">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-xs font-bold text-slate-800 truncate" style={{ color: t.cor }}>
+                          {t.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setModalCopiarPdf(false)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded-xl text-xs transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={turmasDestinoPdf.length === 0}
+                  onClick={handleExecutarCopiaPdf}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold py-3 rounded-xl text-xs transition-all shadow-md active:scale-95 disabled:scale-100 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Copy className="w-4 h-4" />
+                  Confirmar Cópia ({turmasDestinoPdf.length})
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {modalGerador && (
           <motion.div 
@@ -6088,6 +6860,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                       </div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{done}/{total} Atividades Lançadas</div>
 
+
                       {/* Mini Cascata de Categorias da Turma */}
                       <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-500">
@@ -6689,6 +7462,28 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
                      <div className="flex flex-col items-end gap-2 shrink-0">
                       <div className="flex gap-2">
+                        {/* Repositório de PDFs da Atividade */}
+                        {(() => {
+                          const qtdPdfs = (pdfsPorAtividade[getAtividadeKey(turmaSel.id, a)] || []).length;
+                          return (
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAtividadePdfAtiva({ turma: turmaSel, atividade: a });
+                                setModalRepoPdf(true);
+                              }}
+                              className="p-2 bg-amber-50 text-amber-700 rounded-lg border border-amber-200 hover:bg-amber-100 active:scale-90 transition-all shadow-xs relative cursor-pointer"
+                              title={`Repositório de PDFs (${qtdPdfs})`}
+                            >
+                              <Upload className="w-4 h-4" />
+                              {qtdPdfs > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center border-2 border-white shadow-xs">
+                                  {qtdPdfs}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })()}
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
