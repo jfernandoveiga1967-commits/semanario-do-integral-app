@@ -92,7 +92,6 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "mm9",  nome: "Lego:",                  descricao: "" },
     { id: "mm10", nome: "Música:",                descricao: "" },
     { id: "mm11", nome: "Natação:",               descricao: "" },
-    { id: "mm12", nome: "Projeto:",               descricao: "" },
     { id: "mm13", nome: "Psicomotricidade:",      descricao: "" },
     { id: "mm14", nome: "Roda de Música:",        descricao: "" }
   ],
@@ -107,7 +106,6 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "i1-8",  nome: "Lego:",                  descricao: "" },
     { id: "i1-9",  nome: "Música:",                descricao: "" },
     { id: "i1-10", nome: "Natação:",               descricao: "" },
-    { id: "i1-11", nome: "Projeto:",               descricao: "" },
     { id: "i1-12", nome: "Psicomotricidade:",      descricao: "" },
     { id: "i1-13", nome: "Roda de Música:",        descricao: "" }
   ],
@@ -123,10 +121,10 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "i2-9",  nome: "Lição de Casa:",         descricao: "" },
     { id: "i2-10", nome: "Música:",                descricao: "" },
     { id: "i2-11", nome: "Natação:",               descricao: "" },
-    { id: "i2-12", nome: "Projeto:",               descricao: "" },
     { id: "i2-13", nome: "Psicomotricidade:",      descricao: "" }
   ],
   "1ano-azul": [
+    { id: "1a0",  nome: "Artes:",                 descricao: "" },
     { id: "1a1",  nome: "Devocional:",            descricao: "" },
     { id: "1a2",  nome: "Balé:",                  descricao: "" },
     { id: "1a3",  nome: "Caixa de Jogos:",        descricao: "" },
@@ -140,8 +138,7 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "1a11", nome: "Leitura de Gibi:",       descricao: "" },
     { id: "1a12", nome: "Lição de Casa:",         descricao: "" },
     { id: "1a13", nome: "Natação:",               descricao: "" },
-    { id: "1a14", nome: "Projeto:",               descricao: "" },
-    { id: "1a15", nome: "Quadra:",                descricao: "" }
+    { id: "1a14", nome: "Psicomotricidade:",      descricao: "" }
   ],
   "2ano-azul-vermelho": [
     { id: "2av1",  nome: "Artes:",                 descricao: "" },
@@ -160,9 +157,7 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "2av14", nome: "Leitura de Gibi:",       descricao: "" },
     { id: "2av15", nome: "Lição de Casa:",         descricao: "" },
     { id: "2av16", nome: "Natação:",               descricao: "" },
-    { id: "2av17", nome: "Projeto:",               descricao: "" },
-    { id: "2av18", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "2av19", nome: "Quadra:",                descricao: "" }
+    { id: "2av18", nome: "Psicomotricidade:",      descricao: "" }
   ],
   "3ano-azul-vermelho": [
     { id: "3av1",  nome: "Artes:",                 descricao: "" },
@@ -181,9 +176,7 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "3av14", nome: "Leitura de Gibi:",       descricao: "" },
     { id: "3av15", nome: "Lição de Casa:",         descricao: "" },
     { id: "3av16", nome: "Natação:",               descricao: "" },
-    { id: "3av17", nome: "Projeto:",               descricao: "" },
-    { id: "3av18", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "3av19", nome: "Quadra:",                descricao: "" }
+    { id: "3av18", nome: "Psicomotricidade:",      descricao: "" }
   ],
   "4ano-azul": [
     { id: "4a1",  nome: "Artes:",                 descricao: "" },
@@ -202,9 +195,7 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "4a14", nome: "Leitura de Gibi:",       descricao: "" },
     { id: "4a15", nome: "Lição de Casa:",         descricao: "" },
     { id: "4a16", nome: "Natação:",               descricao: "" },
-    { id: "4a17", nome: "Projeto:",               descricao: "" },
-    { id: "4a18", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "4a19", nome: "Quadra:",                descricao: "" }
+    { id: "4a18", nome: "Psicomotricidade:",      descricao: "" }
   ],
   "5ano-azul": [
     { id: "5a1",  nome: "Artes:",                 descricao: "" },
@@ -222,9 +213,7 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "5a13", nome: "Lego:",                  descricao: "" },
     { id: "5a14", nome: "Lição de Casa:",         descricao: "" },
     { id: "5a15", nome: "Natação:",               descricao: "" },
-    { id: "5a16", nome: "Projeto:",               descricao: "" },
     { id: "5a17", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "5a18", nome: "Quadra:",                descricao: "" },
     { id: "5a19", nome: "Robótica:",              descricao: "" }
   ],
   "6ano-azul": [
@@ -243,9 +232,7 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "6a13", nome: "Lego:",                  descricao: "" },
     { id: "6a14", nome: "Lição de Casa:",         descricao: "" },
     { id: "6a15", nome: "Natação:",               descricao: "" },
-    { id: "6a16", nome: "Projeto:",               descricao: "" },
     { id: "6a17", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "6a18", nome: "Quadra:",                descricao: "" },
     { id: "6a19", nome: "Robótica:",              descricao: "" }
   ]
 };
@@ -445,7 +432,6 @@ function formatarAtividadeUnica(a: any, turmaId?: string): any {
     "musica": "Música",
     "música": "Música",
     "psicomotricidade": "Psicomotricidade",
-    "projetos": "Projetos",
     "devocional": "Devocional",
     "culinaria": "Culinária",
     "culinária": "Culinária",
@@ -472,7 +458,6 @@ function formatarAtividadeUnica(a: any, turmaId?: string): any {
     "bale": "Balé",
     "caixa de brinquedos": "Caixa de Brinquedos",
     "caixa de jogos": "Caixa de Jogos",
-    "quadra b": "Quadra B",
     "leitura de gibi": "Leitura de Gibi",
     "gibi": "Leitura de Gibi",
     "motoca": "Motoca",
@@ -2168,8 +2153,6 @@ export default function App() {
       "artes": "Artes",
       "devocional": "Devocional",
       "psicomotricidade": "Psicomotricidade",
-      "projetos": "Projetos",
-      "projeto": "Projetos",
       "culinaria": "Culinária",
       "musica": "Música",
       "roda": "Roda",
@@ -2191,8 +2174,6 @@ export default function App() {
       "contarhistoria": "Contação de História",
       "motoca": "Motoca",
       "leituradegibi": "Leitura de Gibi",
-      "quadrab": "Quadra B",
-      "quadra": "Quadra B",
       "danca": "Dança",
       "futebol": "Futebol",
       "ginastica": "Ginástica",
@@ -3128,7 +3109,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     if (categoria.toLowerCase() === "categoria artes") categoria = "Artes";
     if (categoria.toLowerCase() === "categoria") {
       // Se a categoria for apenas "CATEGORIA", tentamos extrair do título se ele começar com um nome conhecido
-      const categoriasConhecidas = ["Artes", "Devocional", "Psicomotricidade", "Projetos", "Culinária", "Música", "Motoca"];
+      const categoriasConhecidas = ["Artes", "Devocional", "Psicomotricidade", "Culinária", "Música", "Motoca"];
       const encontrou = categoriasConhecidas.find(c => titulo.toUpperCase().startsWith(c.toUpperCase()));
       if (encontrou) {
         categoria = encontrou;
@@ -3155,7 +3136,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     let categoria = parts[0].trim();
     if (categoria.toLowerCase() === "categoria artes") categoria = "Artes";
     if (categoria.toLowerCase() === "categoria") {
-      const categoriasConhecidas = ["Artes", "Devocional", "Psicomotricidade", "Projetos", "Projeto", "Culinária", "Música", "Motoca", "Estímulo Motor", "Lição de Casa", "Caixa de Jogos"];
+      const categoriasConhecidas = ["Artes", "Devocional", "Psicomotricidade", "Culinária", "Música", "Motoca", "Estímulo Motor", "Lição de Casa", "Caixa de Jogos"];
       const titulo = parts.slice(1).join(":").trim();
       const encontrou = categoriasConhecidas.find(c => titulo.toUpperCase().startsWith(c.toUpperCase()));
       if (encontrou) categoria = encontrou;
@@ -3468,7 +3449,6 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       "Artes",
       "Música",
       "Psicomotricidade",
-      "Projetos",
       "Culinária",
       "Lego",
       "Robótica",
@@ -3479,7 +3459,6 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       "Judô",
       "Caixa de Brinquedos",
       "Caixa de Jogos",
-      "Quadra B",
       "Leitura de Gibi",
       "Motoca",
       "Lição de Casa"
@@ -3517,6 +3496,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       "Como atividade", "COMO ATIVIDADE", "Como Atividade", "como atividade",
       "Educação Física", "EDUCAÇÃO FÍSICA", "Educacao Fisica", "EDUCAÇÃO FISICA", "educação física",
       "Projeto Extra", "PROJETO EXTRA", "Projeto extra", "projeto extra",
+      "Projetos", "PROJETOS", "projetos", "Projeto", "PROJETO", "projeto",
+      "Quadra B", "QUADRA B", "quadra b", "Quadra", "QUADRA", "quadra",
       "Atividades", "ATIVIDADES", "Atividade", "atividade", "atividades",
       "Musicalização", "MUSICALIZAÇÃO", "Musicalizacao", "MUSICALIZACAO", "musicalização"
     ];
