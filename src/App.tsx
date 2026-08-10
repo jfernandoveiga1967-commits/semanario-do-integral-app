@@ -266,7 +266,7 @@ function garantirAtividadesPadraoTurma(atvsExistentes: any[], tId: string, email
     
     // Procura na lista existente por um item correspondente à mesma categoria
     const correspondentes = (atvsExistentes || []).filter(a => {
-      return obterCategoriaPuraKey(a.nome) === keyPadrao;
+      return a && a.nome && obterCategoriaPuraKey(a.nome) === keyPadrao;
     });
 
     if (correspondentes.length > 0) {
@@ -287,7 +287,7 @@ function garantirAtividadesPadraoTurma(atvsExistentes: any[], tId: string, email
 
       resultado.push({
         ...melhor,
-        id: melhor.id || `${tId}_${index}_${Date.now()}`,
+        id: melhor.id || itemPadrao.id || `${tId}_${index}`,
         nome: nomeFormatado,
         descricao: melhor.descricao || "",
         adiResponsavel: melhor.adiResponsavel || "",
@@ -296,7 +296,7 @@ function garantirAtividadesPadraoTurma(atvsExistentes: any[], tId: string, email
       });
     } else {
       resultado.push({
-        id: `${tId}_p_${index}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        id: itemPadrao.id || `${tId}_p_${index}`,
         nome: itemPadrao.nome,
         descricao: "",
         adiResponsavel: "",
@@ -305,6 +305,19 @@ function garantirAtividadesPadraoTurma(atvsExistentes: any[], tId: string, email
       });
     }
   });
+
+  if (Array.isArray(atvsExistentes)) {
+    const keysOficiais = new Set(listaOficial.map(i => obterCategoriaPuraKey(i.nome)));
+    atvsExistentes.forEach(a => {
+      if (!a || !a.nome) return;
+      const kExtra = obterCategoriaPuraKey(a.nome);
+      if (kExtra && !keysOficiais.has(kExtra)) {
+        if (!resultado.some(r => r.id === a.id || obterCategoriaPuraKey(r.nome) === kExtra)) {
+          resultado.push(a);
+        }
+      }
+    });
+  }
 
   return resultado;
 }
@@ -660,6 +673,7 @@ export const podeAcessarAtividade = (
 ): boolean => {
   if (!isDocenteRole(userRole)) return true; // Admins and Coordenadores have full access
   const catPura = obterCategoriaPura(categoriaNome);
+  const keyAtv = obterCategoriaPuraKey(catPura);
 
   if (Array.isArray(userAtribuicoes) && userAtribuicoes.length > 0) {
     for (const atb of userAtribuicoes) {
@@ -667,10 +681,10 @@ export const podeAcessarAtividade = (
         if (atb.tipo === "auxiliar") {
           // Auxiliar (Acesso Geral da Turma): if no categories specified, grants access to ALL categories in that turma
           if (!atb.categorias || atb.categorias.length === 0) return true;
-          if (atb.categorias.includes(catPura)) return true;
+          if (atb.categorias.some(c => obterCategoriaPuraKey(c) === keyAtv || c.trim().toLowerCase() === catPura.trim().toLowerCase())) return true;
         } else if (atb.tipo === "especialista") {
           // Especialista (Acesso Específico por Categoria): grants access ONLY to specified categories in that turma
-          if (Array.isArray(atb.categorias) && atb.categorias.includes(catPura)) {
+          if (Array.isArray(atb.categorias) && atb.categorias.some(c => obterCategoriaPuraKey(c) === keyAtv || c.trim().toLowerCase() === catPura.trim().toLowerCase())) {
             return true;
           }
         }
@@ -682,7 +696,7 @@ export const podeAcessarAtividade = (
   // Fallback for legacy user profile structure
   if (Array.isArray(userTurmas) && userTurmas.includes(turmaId)) {
     if (!Array.isArray(userCategorias) || userCategorias.length === 0) return true;
-    return userCategorias.includes(catPura);
+    return userCategorias.some(c => obterCategoriaPuraKey(c) === keyAtv || c.trim().toLowerCase() === catPura.trim().toLowerCase());
   }
 
   return false;
@@ -1310,8 +1324,10 @@ export default function App() {
   const [atividadesPadrao, _setAtividadesPadrao] = useState(() => {
     const raw = loadLocal("semanario_atividades_padrao", ATIVIDADES_PADRAO);
     const cleaned: any = {};
-    Object.keys(raw).forEach((k) => {
-      cleaned[k] = (raw[k] || []).map((a: any) => formatarAtividadeUnica(a, k));
+    TURMAS.forEach((t) => {
+      const list = (raw && raw[t.id]) ? raw[t.id] : (ATIVIDADES_PADRAO[t.id] || []);
+      const formatted = list.map((a: any) => formatarAtividadeUnica(a, t.id));
+      cleaned[t.id] = garantirAtividadesPadraoTurma(formatted, t.id);
     });
     return cleaned;
   });
@@ -1321,9 +1337,15 @@ export default function App() {
       const cleanedAtvs: any = {};
       if (s.atividades) {
         Object.keys(s.atividades).forEach((tId) => {
-          cleanedAtvs[tId] = (s.atividades[tId] || []).map((a: any) => formatarAtividadeUnica(a, tId));
+          const rawAtvs = (s.atividades[tId] || []).map((a: any) => formatarAtividadeUnica(a, tId));
+          cleanedAtvs[tId] = garantirAtividadesPadraoTurma(rawAtvs, tId);
         });
       }
+      TURMAS.forEach((t) => {
+        if (!cleanedAtvs[t.id]) {
+          cleanedAtvs[t.id] = garantirAtividadesPadraoTurma([], t.id);
+        }
+      });
       return {
         ...s,
         atividades: cleanedAtvs
@@ -1824,9 +1846,15 @@ export default function App() {
               const cleanedAtvs: any = {};
               if (s.atividades) {
                 Object.keys(s.atividades).forEach((tId) => {
-                  cleanedAtvs[tId] = (s.atividades[tId] || []).map((a: any) => formatarAtividadeUnica(a, tId));
+                  const rawAtvs = (s.atividades[tId] || []).map((a: any) => formatarAtividadeUnica(a, tId));
+                  cleanedAtvs[tId] = garantirAtividadesPadraoTurma(rawAtvs, tId);
                 });
               }
+              TURMAS.forEach((t) => {
+                if (!cleanedAtvs[t.id]) {
+                  cleanedAtvs[t.id] = garantirAtividadesPadraoTurma([], t.id);
+                }
+              });
               sList.push({
                 ...s,
                 atividades: cleanedAtvs
@@ -1878,7 +1906,14 @@ export default function App() {
           const unsubAtvs = onSnapshot(doc(db, "config", "atividades_padrao"), (docSnap) => {
             isSyncingFromCloud.current = true;
             if (docSnap.exists() && docSnap.data().data) {
-              _setAtividadesPadrao(docSnap.data().data);
+              const cloudPadrao = docSnap.data().data || {};
+              const cleanedPadrao: any = {};
+              TURMAS.forEach((t) => {
+                const list = cloudPadrao[t.id] || ATIVIDADES_PADRAO[t.id] || [];
+                const formatted = list.map((a: any) => formatarAtividadeUnica(a, t.id));
+                cleanedPadrao[t.id] = garantirAtividadesPadraoTurma(formatted, t.id);
+              });
+              _setAtividadesPadrao(cleanedPadrao);
             }
             isSyncingFromCloud.current = false;
           }, (error) => {
