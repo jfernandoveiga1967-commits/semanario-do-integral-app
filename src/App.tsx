@@ -179,7 +179,8 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "3av14", nome: "Leitura de Gibi:",       descricao: "" },
     { id: "3av15", nome: "Lição de Casa:",         descricao: "" },
     { id: "3av16", nome: "Natação:",               descricao: "" },
-    { id: "3av18", nome: "Psicomotricidade:",      descricao: "" }
+    { id: "3av18", nome: "Psicomotricidade:",      descricao: "" },
+    { id: "3av19", nome: "Quadra:",                descricao: "" }
   ],
   "4ano-azul": [
     { id: "4a1",  nome: "Artes:",                 descricao: "" },
@@ -198,7 +199,8 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "4a14", nome: "Leitura de Gibi:",       descricao: "" },
     { id: "4a15", nome: "Lição de Casa:",         descricao: "" },
     { id: "4a16", nome: "Natação:",               descricao: "" },
-    { id: "4a18", nome: "Psicomotricidade:",      descricao: "" }
+    { id: "4a18", nome: "Psicomotricidade:",      descricao: "" },
+    { id: "4a19", nome: "Quadra:",                descricao: "" }
   ],
   "5ano-azul": [
     { id: "5a1",  nome: "Artes:",                 descricao: "" },
@@ -217,7 +219,8 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "5a14", nome: "Lição de Casa:",         descricao: "" },
     { id: "5a15", nome: "Natação:",               descricao: "" },
     { id: "5a17", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "5a19", nome: "Robótica:",              descricao: "" }
+    { id: "5a19", nome: "Robótica:",              descricao: "" },
+    { id: "5a20", nome: "Quadra:",                descricao: "" }
   ],
   "6ano-azul": [
     { id: "6a1",  nome: "Artes:",                 descricao: "" },
@@ -236,7 +239,8 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "6a14", nome: "Lição de Casa:",         descricao: "" },
     { id: "6a15", nome: "Natação:",               descricao: "" },
     { id: "6a17", nome: "Psicomotricidade:",      descricao: "" },
-    { id: "6a19", nome: "Robótica:",              descricao: "" }
+    { id: "6a19", nome: "Robótica:",              descricao: "" },
+    { id: "6a20", nome: "Quadra:",                descricao: "" }
   ]
 };
 
@@ -257,6 +261,7 @@ function obterCategoriaPuraKey(nome: string): string {
   if (base.startsWith("leitura de gibi")) return "leitura de gibi";
   if (base.startsWith("psicomotricidade")) return "psicomotricidade";
   if (base.startsWith("projeto")) return "projeto";
+  if (base.startsWith("quadra")) return "quadra";
   
   return base;
 }
@@ -370,6 +375,7 @@ function obterCategoriaPura(nome: string): string {
   if (catLower === "coral e canto") return "Coral";
   if (catLower === "como atividade" || catLower === "como atividade:" || catLower === "como_atividade") return "Atividade";
   if (catLower === "roda de musica" || catLower === "roda de música" || catLower === "roda") return "Roda de Música";
+  if (catLower === "quadra" || catLower === "quadra b") return "Quadra";
   return cat;
 }
 
@@ -497,6 +503,8 @@ function formatarAtividadeUnica(a: any, turmaId?: string): any {
     "licao de casa - geografia": "Lição de Casa - Geografia",
     "projeto": "Projeto",
     "projetos": "Projeto",
+    "quadra": "Quadra",
+    "quadra b": "Quadra",
     "atividade": "Atividades",
     "atividades": "Atividades"
   };
@@ -2235,6 +2243,8 @@ export default function App() {
       "licaodecasageografia": "Lição de Casa - Geografia",
       "projeto": "Projeto",
       "projetos": "Projeto",
+      "quadra": "Quadra",
+      "quadrab": "Quadra",
       "atividades": "Atividades"
     };
 
@@ -3524,7 +3534,8 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       "Caixa de Jogos",
       "Leitura de Gibi",
       "Lição de Casa",
-      "Projeto"
+      "Projeto",
+      "Quadra"
     ]);
 
     if (ATIVIDADES) {
@@ -3558,7 +3569,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       "Coral e Canto", "CORAL E CANTO", "Coral e canto",
       "Como atividade", "COMO ATIVIDADE", "Como Atividade", "como atividade",
       "Educação Física", "EDUCAÇÃO FÍSICA", "Educacao Fisica", "EDUCAÇÃO FISICA", "educação física",
-      "Quadra B", "QUADRA B", "quadra b", "Quadra", "QUADRA", "quadra",
+      "Quadra B", "QUADRA B", "quadra b",
       "Atividades", "ATIVIDADES", "Atividade", "atividade", "atividades",
       "Musicalização", "MUSICALIZAÇÃO", "Musicalizacao", "MUSICALIZACAO", "musicalização",
       "Motoca", "MOTOCA", "motoca", "Estímulo Motor", "ESTÍMULO MOTOR", "Estímulo Motor (Motoca)", "ESTÍMULO MOTOR (MOTOCA)",
