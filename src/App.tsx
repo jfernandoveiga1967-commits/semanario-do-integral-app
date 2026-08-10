@@ -3842,10 +3842,11 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
   // Funções de edição de estrutura de atividades
   const adicionarBase = (tId: string) => {
+    const novaId = `atv-${Date.now()}`;
     const nova = { 
-      id: `atv-${Date.now()}`, 
-      nome: "Nova Atividade", 
-      descricao: "Toque no lápis para editar...",
+      id: novaId, 
+      nome: "Categoria: Nova Atividade", 
+      descricao: "",
       adiResponsavel: "",
       monitoras: "",
       criadoPorEmail: (!guestMode && user?.email) ? user.email : "Local"
@@ -3861,7 +3862,15 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
         } 
       };
     }));
-    toast$("Atividade adicionada!");
+    setEditandoAtividadeId(novaId);
+    setEditandoEstrutura({
+      categoria: "Categoria",
+      nome: "Nova Atividade",
+      tema: sem?.tema || "",
+      descricao: "",
+      adiResponsavel: "",
+      monitoras: ""
+    });
   };
 
   const removerDaEstrutura = (tId: string, aId: string) => {
@@ -3980,15 +3989,22 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   };
 
   const salvarEdicaoEstrutura = () => {
-    if (!editandoEstrutura.nome.trim()) return;
+    if (!editandoEstrutura.nome || !editandoEstrutura.nome.trim()) {
+      toast$("Informe o nome da atividade.", "erro");
+      return;
+    }
     const activeSemId = sem?.id || semAtualId;
+    const catBruta = (editandoEstrutura.categoria || "Categoria").trim().replace(/:$/, "");
+    const nomeBruto = editandoEstrutura.nome.trim();
+    const nomeCompleto = catBruta ? `${catBruta}: ${nomeBruto}` : nomeBruto;
+
     setSemanarios((prev: any) => prev.map((s: any) => {
       if (s.id !== activeSemId) return s;
       const tId = turmaSel.id;
       const novas = s.atividades[tId].map((a: any) => 
         a.id === editandoAtividadeId ? formatarAtividadeUnica({ 
           ...a, 
-          nome: `${editandoEstrutura.categoria || obterCategoriaPura(a.nome)}: ${editandoEstrutura.nome}`, 
+          nome: nomeCompleto, 
           descricao: editandoEstrutura.descricao,
           adiResponsavel: editandoEstrutura.adiResponsavel || "",
           monitoras: editandoEstrutura.monitoras || ""
@@ -3997,7 +4013,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
       return { ...s, tema: editandoEstrutura.tema, atividades: { ...s.atividades, [tId]: novas } };
     }));
     setEditandoEstrutura(null);
-    toast$("Atualizado!");
+    toast$("Atividade salva com sucesso!");
   };
 
   const criarTurma = () => {
@@ -7220,13 +7236,31 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                           onChange={e => setEditandoEstrutura((p: any) => ({ ...p, tema: e.target.value }))}
                         />
                       </div>
-                      <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Atividade Proposta</label>
-                        <input 
-                          className="w-full border-2 border-slate-100 rounded-xl p-3 text-sm focus:border-blue-500 outline-none"
-                          value={editandoEstrutura.nome}
-                          onChange={e => setEditandoEstrutura((p: any) => ({ ...p, nome: e.target.value }))}
-                        />
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">
+                            Categoria / Prefixo
+                          </label>
+                          <input 
+                            type="text"
+                            className="w-full border-2 border-slate-100 rounded-xl p-3 text-sm focus:border-blue-500 outline-none font-bold text-blue-700 bg-slate-50 focus:bg-white"
+                            placeholder="Ex: Categoria, Música, Artes..."
+                            value={editandoEstrutura.categoria || ""}
+                            onChange={e => setEditandoEstrutura((p: any) => ({ ...p, categoria: e.target.value }))}
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">
+                            Nome da Atividade / Proposta
+                          </label>
+                          <input 
+                            type="text"
+                            className="w-full border-2 border-slate-100 rounded-xl p-3 text-sm focus:border-blue-500 outline-none"
+                            placeholder="Digite o nome da atividade..."
+                            value={editandoEstrutura.nome || ""}
+                            onChange={e => setEditandoEstrutura((p: any) => ({ ...p, nome: e.target.value }))}
+                          />
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
