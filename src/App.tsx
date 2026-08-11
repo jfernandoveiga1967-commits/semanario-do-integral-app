@@ -6781,10 +6781,17 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                   </button>
                 </div>
               )}
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <div>
-                  <div translate="no" className="notranslate uppercase tracking-[0.2em] text-3xl font-black text-red-600 leading-none">INTEGRAL</div>
-                  <h1 className="text-2xl font-black">Semanário de Atividades</h1>
+ <div className="flex items-start justify-between gap-2 mb-1">
+                <div className="flex items-center gap-3">
+                  <img
+                    src="/pwa-192.png"
+                    alt="Ícone Semanário Integral"
+                    className="w-10 h-10 rounded-xl shrink-0 shadow-lg shadow-black/20"
+                  />
+                  <div>
+                    <div translate="no" className="notranslate uppercase tracking-[0.2em] text-3xl font-black text-red-600 leading-none">INTEGRAL</div>
+                    <h1 className="text-2xl font-black">Semanário de Atividades</h1>
+                  </div>
                 </div>
               </div>
               <div className="flex flex-col gap-1.5 mb-6">
