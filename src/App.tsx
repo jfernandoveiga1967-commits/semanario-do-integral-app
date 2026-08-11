@@ -205,7 +205,6 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
   "5ano-azul": [
     { id: "5a1",  nome: "Artes:",                 descricao: "" },
     { id: "5a2",  nome: "Caixa de Jogos:",        descricao: "" },
-    { id: "5a3",  nome: "Contação de História:",  descricao: "" },
     { id: "5a4",  nome: "Coral:",                 descricao: "" },
     { id: "5a5",  nome: "Culinária:",             descricao: "" },
     { id: "5a6",  nome: "Dança:",                 descricao: "" },
@@ -225,7 +224,6 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
   "6ano-azul": [
     { id: "6a1",  nome: "Artes:",                 descricao: "" },
     { id: "6a2",  nome: "Caixa de Jogos:",        descricao: "" },
-    { id: "6a3",  nome: "Contação de História:",  descricao: "" },
     { id: "6a4",  nome: "Coral:",                 descricao: "" },
     { id: "6a5",  nome: "Culinária:",             descricao: "" },
     { id: "6a6",  nome: "Dança:",                 descricao: "" },
@@ -3349,6 +3347,15 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
           if (
             (tId === "mini-maternal-azul" || tId === "infantil1-azul" || tId === "infantil2-azul") &&
             (a.nome?.toLowerCase().includes("motoca") || a.nome?.toLowerCase().includes("estímulo motor") || a.nome?.toLowerCase().includes("estimulo motor"))
+          ) {
+            mudou = true;
+            return false;
+          }
+
+          // Remove Contação de História do 5º e 6º ano
+          if (
+            (tId === "5ano-azul" || tId === "6ano-azul") &&
+            (a.id === "5a3" || a.id === "6a3" || a.nome?.toLowerCase().startsWith("contação de história") || a.nome?.toLowerCase().startsWith("contacao de historia"))
           ) {
             mudou = true;
             return false;
