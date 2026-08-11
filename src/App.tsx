@@ -660,6 +660,7 @@ export const isDocenteRole = (role?: string): boolean => {
 export interface PdfItem {
   id: string;
   turmaId: string;
+  atividadeId?: string;
   nome: string;
   tamanho: string;
   dataUpload: string;
@@ -6080,7 +6081,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
                     <button
                       type="button"
                       onClick={() => {
-                        const outras = turmas.filter(t => t.id !== turmaPdfAtiva?.id).map(t => t.id);
+                        const outras = turmas.filter(t => t.id !== atividadePdfAtiva?.turma?.id).map(t => t.id);
                         setTurmasDestinoPdf(outras);
                       }}
                       className="text-[10px] text-indigo-600 font-bold hover:underline"
@@ -6100,7 +6101,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto p-1">
                   {ordenarTurmas(turmas).map((t) => {
-                    if (t.id === turmaPdfAtiva?.id) return null;
+                    if (t.id === atividadePdfAtiva?.turma?.id) return null;
                     const isSel = turmasDestinoPdf.includes(t.id);
                     return (
                       <button
