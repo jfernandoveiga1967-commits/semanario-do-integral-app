@@ -72,8 +72,10 @@ const TURMAS = [
   { id: "infantil1-azul",             label: "Infantil 1 Azul",             cor: "#14B8A6" }, // Verde água
   { id: "infantil2-azul",             label: "Infantil 2 Azul",             cor: "#14B8A6" }, // Verde água
   { id: "1ano-azul",                  label: "1º Ano Azul",                 cor: "#DC2626" }, // Vermelho
-  { id: "2ano-azul-vermelho",         label: "2º Ano Azul e Vermelho",      cor: "#DC2626" }, // Vermelho
-  { id: "3ano-azul-vermelho",         label: "3º Ano Azul e Vermelho",      cor: "#2563EB" }, // Azul
+  { id: "2ano-azul",                  label: "2º Ano Azul",                 cor: "#2563EB" }, // Azul
+  { id: "2ano-vermelho",              label: "2º Ano Vermelho",             cor: "#DC2626" }, // Vermelho
+  { id: "3ano-azul",                  label: "3º Ano Azul",                 cor: "#2563EB" }, // Azul
+  { id: "3ano-vermelho",              label: "3º Ano Vermelho",             cor: "#DC2626" }, // Vermelho
   { id: "4ano-azul",                  label: "4º Ano Azul",                 cor: "#2563EB" }, // Azul
   { id: "5ano-azul",                  label: "5º Ano Azul",                 cor: "#2563EB" }, // Azul
   { id: "6ano-azul",                  label: "6º Ano Azul",                 cor: "#2563EB" }, // Azul
@@ -143,6 +145,44 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "1a13", nome: "Natação:",               descricao: "" },
     { id: "1a14", nome: "Psicomotricidade:",      descricao: "" }
   ],
+  "2ano-azul": [
+    { id: "2a1",  nome: "Artes:",                 descricao: "" },
+    { id: "2a2",  nome: "Caixa de Jogos:",        descricao: "" },
+    { id: "2a3",  nome: "Contação de História:",  descricao: "" },
+    { id: "2a4",  nome: "Coral:",                 descricao: "" },
+    { id: "2a5",  nome: "Culinária:",             descricao: "" },
+    { id: "2a6",  nome: "Dança:",                 descricao: "" },
+    { id: "2a7",  nome: "Devocional:",            descricao: "" },
+    { id: "2a8",  nome: "Flauta:",                descricao: "" },
+    { id: "2a9",  nome: "Futebol:",               descricao: "" },
+    { id: "2a10", nome: "Ginástica:",             descricao: "" },
+    { id: "2a11", nome: "Informática:",           descricao: "" },
+    { id: "2a12", nome: "Judô:",                  descricao: "" },
+    { id: "2a13", nome: "Lego:",                  descricao: "" },
+    { id: "2a14", nome: "Leitura de Gibi:",       descricao: "" },
+    { id: "2a15", nome: "Lição de Casa:",         descricao: "" },
+    { id: "2a16", nome: "Natação:",               descricao: "" },
+    { id: "2a18", nome: "Psicomotricidade:",      descricao: "" }
+  ],
+  "2ano-vermelho": [
+    { id: "2v1",  nome: "Artes:",                 descricao: "" },
+    { id: "2v2",  nome: "Caixa de Jogos:",        descricao: "" },
+    { id: "2v3",  nome: "Contação de História:",  descricao: "" },
+    { id: "2v4",  nome: "Coral:",                 descricao: "" },
+    { id: "2v5",  nome: "Culinária:",             descricao: "" },
+    { id: "2v6",  nome: "Dança:",                 descricao: "" },
+    { id: "2v7",  nome: "Devocional:",            descricao: "" },
+    { id: "2v8",  nome: "Flauta:",                descricao: "" },
+    { id: "2v9",  nome: "Futebol:",               descricao: "" },
+    { id: "2v10", nome: "Ginástica:",             descricao: "" },
+    { id: "2v11", nome: "Informática:",           descricao: "" },
+    { id: "2v12", nome: "Judô:",                  descricao: "" },
+    { id: "2v13", nome: "Lego:",                  descricao: "" },
+    { id: "2v14", nome: "Leitura de Gibi:",       descricao: "" },
+    { id: "2v15", nome: "Lição de Casa:",         descricao: "" },
+    { id: "2v16", nome: "Natação:",               descricao: "" },
+    { id: "2v18", nome: "Psicomotricidade:",      descricao: "" }
+  ],
   "2ano-azul-vermelho": [
     { id: "2av1",  nome: "Artes:",                 descricao: "" },
     { id: "2av2",  nome: "Caixa de Jogos:",        descricao: "" },
@@ -161,6 +201,46 @@ const ATIVIDADES_PADRAO: Record<string, Array<{ id: string; nome: string; descri
     { id: "2av15", nome: "Lição de Casa:",         descricao: "" },
     { id: "2av16", nome: "Natação:",               descricao: "" },
     { id: "2av18", nome: "Psicomotricidade:",      descricao: "" }
+  ],
+  "3ano-azul": [
+    { id: "3a1",  nome: "Artes:",                 descricao: "" },
+    { id: "3a2",  nome: "Caixa de Jogos:",        descricao: "" },
+    { id: "3a3",  nome: "Contação de História:",  descricao: "" },
+    { id: "3a4",  nome: "Coral:",                 descricao: "" },
+    { id: "3a5",  nome: "Culinária:",             descricao: "" },
+    { id: "3a6",  nome: "Dança:",                 descricao: "" },
+    { id: "3a7",  nome: "Devocional:",            descricao: "" },
+    { id: "3a8",  nome: "Flauta:",                descricao: "" },
+    { id: "3a9",  nome: "Futebol:",               descricao: "" },
+    { id: "3a10", nome: "Ginástica:",             descricao: "" },
+    { id: "3a11", nome: "Informática:",           descricao: "" },
+    { id: "3a12", nome: "Judô:",                  descricao: "" },
+    { id: "3a13", nome: "Lego:",                  descricao: "" },
+    { id: "3a14", nome: "Leitura de Gibi:",       descricao: "" },
+    { id: "3a15", nome: "Lição de Casa:",         descricao: "" },
+    { id: "3a16", nome: "Natação:",               descricao: "" },
+    { id: "3a18", nome: "Psicomotricidade:",      descricao: "" },
+    { id: "3a19", nome: "Quadra:",                descricao: "" }
+  ],
+  "3ano-vermelho": [
+    { id: "3v1",  nome: "Artes:",                 descricao: "" },
+    { id: "3v2",  nome: "Caixa de Jogos:",        descricao: "" },
+    { id: "3v3",  nome: "Contação de História:",  descricao: "" },
+    { id: "3v4",  nome: "Coral:",                 descricao: "" },
+    { id: "3v5",  nome: "Culinária:",             descricao: "" },
+    { id: "3v6",  nome: "Dança:",                 descricao: "" },
+    { id: "3v7",  nome: "Devocional:",            descricao: "" },
+    { id: "3v8",  nome: "Flauta:",                descricao: "" },
+    { id: "3v9",  nome: "Futebol:",               descricao: "" },
+    { id: "3v10", nome: "Ginástica:",             descricao: "" },
+    { id: "3v11", nome: "Informática:",           descricao: "" },
+    { id: "3v12", nome: "Judô:",                  descricao: "" },
+    { id: "3v13", nome: "Lego:",                  descricao: "" },
+    { id: "3v14", nome: "Leitura de Gibi:",       descricao: "" },
+    { id: "3v15", nome: "Lição de Casa:",         descricao: "" },
+    { id: "3v16", nome: "Natação:",               descricao: "" },
+    { id: "3v18", nome: "Psicomotricidade:",      descricao: "" },
+    { id: "3v19", nome: "Quadra:",                descricao: "" }
   ],
   "3ano-azul-vermelho": [
     { id: "3av1",  nome: "Artes:",                 descricao: "" },
@@ -264,8 +344,19 @@ function obterCategoriaPuraKey(nome: string): string {
   return base;
 }
 
+function matchCategoryKey(key1: string, key2: string): boolean {
+  if (!key1 || !key2) return false;
+  if (key1 === key2) return true;
+  if ((key1 === "caixa de brinquedos" || key1 === "caixa de jogos") && (key2 === "caixa de brinquedos" || key2 === "caixa de jogos")) return true;
+  if ((key1 === "estimulo motor (motoca)" || key1 === "motoca") && (key2 === "estimulo motor (motoca)" || key2 === "motoca")) return true;
+  return false;
+}
+
 function garantirAtividadesPadraoTurma(atvsExistentes: any[], tId: string, emailUsuario?: string) {
-  const listaOficial = ATIVIDADES_PADRAO[tId] || ATIVIDADES_PADRAO["1ano-azul"] || [];
+  const listaOficial = ATIVIDADES_PADRAO[tId] || 
+    (tId?.includes("2ano") ? ATIVIDADES_PADRAO["2ano-azul"] : undefined) ||
+    (tId?.includes("3ano") ? ATIVIDADES_PADRAO["3ano-azul"] : undefined) ||
+    ATIVIDADES_PADRAO["1ano-azul"] || [];
   const resultado: any[] = [];
 
   listaOficial.forEach((itemPadrao, index) => {
@@ -273,13 +364,15 @@ function garantirAtividadesPadraoTurma(atvsExistentes: any[], tId: string, email
     
     // Procura na lista existente por um item correspondente à mesma categoria
     const correspondentes = (atvsExistentes || []).filter(a => {
-      return a && a.nome && obterCategoriaPuraKey(a.nome) === keyPadrao;
+      return a && a.nome && matchCategoryKey(obterCategoriaPuraKey(a.nome), keyPadrao);
     });
 
     if (correspondentes.length > 0) {
       let melhor = correspondentes[0];
       for (const candidate of correspondentes) {
-        if ((candidate.descricao || "").trim().length > (melhor.descricao || "").trim().length) {
+        const candidateScore = (candidate.descricao || "").trim().length + (candidate.adiResponsavel || "").trim().length + (candidate.monitoras || "").trim().length;
+        const melhorScore = (melhor.descricao || "").trim().length + (melhor.adiResponsavel || "").trim().length + (melhor.monitoras || "").trim().length;
+        if (candidateScore > melhorScore) {
           melhor = candidate;
         }
       }
@@ -327,6 +420,142 @@ function garantirAtividadesPadraoTurma(atvsExistentes: any[], tId: string, email
   }
 
   return resultado;
+}
+
+function normalizarAtividadesSemanario(rawAtividades: any, semId?: string, emailUsuario?: string): Record<string, any[]> {
+  const atvs = (rawAtividades && typeof rawAtividades === "object") ? { ...rawAtividades } : {};
+  const cleaned: Record<string, any[]> = {};
+
+  // Extrai atividades lançadas históricas/legadas de turmas unificadas
+  const atvs2av = atvs["2ano-azul-vermelho"] || atvs["2ano-azul-e-vermelho"] || [];
+  const atvs3av = atvs["3ano-azul-vermelho"] || atvs["3ano-azul-e-vermelho"] || [];
+
+  // Função de fusão que preserva descrições, ADIs e lançamentos preenchidos
+  const fundirAtividades = (existentes: any[], legadas: any[], targetTurmaId: string) => {
+    const arrExistentes = Array.isArray(existentes) ? existentes.map(a => formatarAtividadeUnica(a, targetTurmaId)) : [];
+    const arrLegadas = Array.isArray(legadas) ? legadas.map(a => formatarAtividadeUnica(a, targetTurmaId)) : [];
+
+    if (arrExistentes.length === 0) return arrLegadas;
+    if (arrLegadas.length === 0) return arrExistentes;
+
+    const mapa = new Map<string, any>();
+    
+    // Adiciona legadas primeiro
+    arrLegadas.forEach(a => {
+      if (!a) return;
+      const k = obterCategoriaPuraKey(a.nome) || a.id;
+      mapa.set(k, a);
+    });
+
+    // Mescla com existentes dando preferência ao conteúdo mais rico/preenchido
+    arrExistentes.forEach(a => {
+      if (!a) return;
+      const k = obterCategoriaPuraKey(a.nome) || a.id;
+      if (!mapa.has(k)) {
+        mapa.set(k, a);
+      } else {
+        const leg = mapa.get(k);
+        const legContent = (leg?.descricao || "").trim().length + (leg?.adiResponsavel || "").trim().length + (leg?.monitoras || "").trim().length;
+        const exContent = (a?.descricao || "").trim().length + (a?.adiResponsavel || "").trim().length + (a?.monitoras || "").trim().length;
+        if (exContent >= legContent) {
+          mapa.set(k, a);
+        }
+      }
+    });
+
+    return Array.from(mapa.values());
+  };
+
+  // 2º Ano Azul: herda e mantém integralmente todas as atividades lançadas
+  const raw2Azul = atvs["2ano-azul"] || [];
+  const merged2Azul = fundirAtividades(raw2Azul, atvs2av, "2ano-azul");
+  cleaned["2ano-azul"] = garantirAtividadesPadraoTurma(merged2Azul, "2ano-azul", emailUsuario);
+
+  // 2º Ano Vermelho
+  const raw2Verm = atvs["2ano-vermelho"] || [];
+  const merged2Verm = fundirAtividades(raw2Verm, atvs2av, "2ano-vermelho");
+  cleaned["2ano-vermelho"] = garantirAtividadesPadraoTurma(merged2Verm, "2ano-vermelho", emailUsuario);
+
+  // 3º Ano Azul: herda e mantém integralmente todas as atividades lançadas
+  const raw3Azul = atvs["3ano-azul"] || [];
+  const merged3Azul = fundirAtividades(raw3Azul, atvs3av, "3ano-azul");
+  cleaned["3ano-azul"] = garantirAtividadesPadraoTurma(merged3Azul, "3ano-azul", emailUsuario);
+
+  // 3º Ano Vermelho
+  const raw3Verm = atvs["3ano-vermelho"] || [];
+  const merged3Verm = fundirAtividades(raw3Verm, atvs3av, "3ano-vermelho");
+  cleaned["3ano-vermelho"] = garantirAtividadesPadraoTurma(merged3Verm, "3ano-vermelho", emailUsuario);
+
+  // Processa todas as demais turmas
+  Object.keys(atvs).forEach(tId => {
+    if (["2ano-azul-vermelho", "3ano-azul-vermelho", "2ano-azul-e-vermelho", "3ano-azul-e-vermelho", "2ano-azul", "2ano-vermelho", "3ano-azul", "3ano-vermelho"].includes(tId)) {
+      return;
+    }
+    const rawList = (atvs[tId] || []).map((a: any) => formatarAtividadeUnica(a, tId));
+    cleaned[tId] = garantirAtividadesPadraoTurma(rawList, tId, emailUsuario);
+  });
+
+  // Garante que todas as turmas canônicas estejam preenchidas
+  TURMAS.forEach(t => {
+    if (!cleaned[t.id]) {
+      cleaned[t.id] = garantirAtividadesPadraoTurma([], t.id, emailUsuario);
+    }
+  });
+
+  // Mantém aliases para retrocompatibilidade
+  if (cleaned["2ano-azul"]) {
+    cleaned["2ano-azul-vermelho"] = cleaned["2ano-azul"];
+  }
+  if (cleaned["3ano-azul"]) {
+    cleaned["3ano-azul-vermelho"] = cleaned["3ano-azul"];
+  }
+
+  return cleaned;
+}
+
+function normalizarListaTurmas(rawList: any[]): any[] {
+  let list = Array.isArray(rawList) ? [...rawList] : [];
+  
+  // Replace or update 2ano-azul-vermelho -> 2ano-azul, 3ano-azul-vermelho -> 3ano-azul
+  list = list.map(t => {
+    if (!t) return t;
+    if (t.id === "2ano-azul-vermelho") {
+      return { id: "2ano-azul", label: "2º Ano Azul", cor: "#2563EB" };
+    }
+    if (t.id === "3ano-azul-vermelho") {
+      return { id: "3ano-azul", label: "3º Ano Azul", cor: "#2563EB" };
+    }
+    if (t.id === "2ano-azul") {
+      return { ...t, label: "2º Ano Azul", cor: t.cor || "#2563EB" };
+    }
+    if (t.id === "3ano-azul") {
+      return { ...t, label: "3º Ano Azul", cor: t.cor || "#2563EB" };
+    }
+    if (t.id === "2ano-vermelho") {
+      return { ...t, label: "2º Ano Vermelho", cor: t.cor || "#DC2626" };
+    }
+    if (t.id === "3ano-vermelho") {
+      return { ...t, label: "3º Ano Vermelho", cor: t.cor || "#DC2626" };
+    }
+    return t;
+  }).filter(Boolean);
+
+  // Ensure all canonical TURMAS exist
+  TURMAS.forEach(canonical => {
+    if (!list.some(t => t.id === canonical.id)) {
+      list.push({ ...canonical });
+    }
+  });
+
+  // Deduplicate by id preserving standard properties
+  const mapById = new Map<string, any>();
+  list.forEach(t => {
+    if (t && t.id && !mapById.has(t.id)) {
+      mapById.set(t.id, t);
+    }
+  });
+
+  return Array.from(mapById.values());
 }
 
 const STATUS_CONFIG: any = {
@@ -381,6 +610,16 @@ function resolverTurmaId(rawKey: string, turmasLista: any[]): any {
   if (!rawKey || typeof rawKey !== "string" || !Array.isArray(turmasLista)) return null;
   const keyClean = rawKey.trim();
   if (!keyClean) return null;
+
+  // Direct aliases for renamed turmas
+  if (keyClean === "2ano-azul-vermelho" || keyClean.toLowerCase() === "2º ano azul e vermelho" || keyClean.toLowerCase() === "2o ano azul e vermelho") {
+    const found = turmasLista.find((t: any) => t.id === "2ano-azul");
+    if (found) return found;
+  }
+  if (keyClean === "3ano-azul-vermelho" || keyClean.toLowerCase() === "3º ano azul e vermelho" || keyClean.toLowerCase() === "3o ano azul e vermelho") {
+    const found = turmasLista.find((t: any) => t.id === "3ano-azul");
+    if (found) return found;
+  }
 
   // 1. Exact match by ID
   const matchId = turmasLista.find((t: any) => t.id === keyClean || t.id.toLowerCase() === keyClean.toLowerCase());
@@ -696,9 +935,17 @@ export const podeAcessarAtividade = (
   const catPura = obterCategoriaPura(categoriaNome);
   const keyAtv = obterCategoriaPuraKey(catPura);
 
+  const matchTurma = (idList: string[]) => {
+    if (!Array.isArray(idList)) return false;
+    if (idList.includes(turmaId)) return true;
+    if ((turmaId === "2ano-azul" || turmaId === "2ano-vermelho") && idList.includes("2ano-azul-vermelho")) return true;
+    if ((turmaId === "3ano-azul" || turmaId === "3ano-vermelho") && idList.includes("3ano-azul-vermelho")) return true;
+    return false;
+  };
+
   if (Array.isArray(userAtribuicoes) && userAtribuicoes.length > 0) {
     for (const atb of userAtribuicoes) {
-      if (Array.isArray(atb.turmas) && atb.turmas.includes(turmaId)) {
+      if (Array.isArray(atb.turmas) && matchTurma(atb.turmas)) {
         if (atb.tipo === "auxiliar") {
           // Auxiliar (Acesso Geral da Turma): if no categories specified, grants access to ALL categories in that turma
           if (!atb.categorias || atb.categorias.length === 0) return true;
@@ -715,7 +962,7 @@ export const podeAcessarAtividade = (
   }
 
   // Fallback for legacy user profile structure
-  if (Array.isArray(userTurmas) && userTurmas.includes(turmaId)) {
+  if (Array.isArray(userTurmas) && matchTurma(userTurmas)) {
     if (!Array.isArray(userCategorias) || userCategorias.length === 0) return true;
     return userCategorias.some(c => obterCategoriaPuraKey(c) === keyAtv || c.trim().toLowerCase() === catPura.trim().toLowerCase());
   }
@@ -730,10 +977,17 @@ export const podeAcessarTurma = (
   userTurmas: string[] = []
 ): boolean => {
   if (!isDocenteRole(userRole)) return true;
+  const matchTurma = (idList: string[]) => {
+    if (!Array.isArray(idList)) return false;
+    if (idList.includes(turmaId)) return true;
+    if ((turmaId === "2ano-azul" || turmaId === "2ano-vermelho") && idList.includes("2ano-azul-vermelho")) return true;
+    if ((turmaId === "3ano-azul" || turmaId === "3ano-vermelho") && idList.includes("3ano-azul-vermelho")) return true;
+    return false;
+  };
   if (Array.isArray(userAtribuicoes) && userAtribuicoes.length > 0) {
-    return userAtribuicoes.some(atb => Array.isArray(atb.turmas) && atb.turmas.includes(turmaId));
+    return userAtribuicoes.some(atb => Array.isArray(atb.turmas) && matchTurma(atb.turmas));
   }
-  return Array.isArray(userTurmas) && userTurmas.includes(turmaId);
+  return matchTurma(userTurmas);
 };
 
 export default function App() {
@@ -1321,7 +1575,7 @@ export default function App() {
     });
   };
 
-  const [turmas, _setTurmas]           = useState(() => loadLocal("semanario_turmas", TURMAS));
+  const [turmas, _setTurmas]           = useState(() => normalizarListaTurmas(loadLocal("semanario_turmas", TURMAS)));
 
   // Lista de turmas visíveis/permitidas baseada no perfil e atribuição do usuário
   const turmasVisiveis = useMemo(() => {
@@ -1354,24 +1608,10 @@ export default function App() {
   });
   const [semanarios, _setSemanarios] = useState(() => {
     const raw = loadLocal("semanario_lista", [SEM_INICIAL]);
-    const cleanedList = (raw || []).map((s: any) => {
-      const cleanedAtvs: any = {};
-      if (s.atividades) {
-        Object.keys(s.atividades).forEach((tId) => {
-          const rawAtvs = (s.atividades[tId] || []).map((a: any) => formatarAtividadeUnica(a, tId));
-          cleanedAtvs[tId] = garantirAtividadesPadraoTurma(rawAtvs, tId);
-        });
-      }
-      TURMAS.forEach((t) => {
-        if (!cleanedAtvs[t.id]) {
-          cleanedAtvs[t.id] = garantirAtividadesPadraoTurma([], t.id);
-        }
-      });
-      return {
-        ...s,
-        atividades: cleanedAtvs
-      };
-    });
+    const cleanedList = (raw || []).map((s: any) => ({
+      ...s,
+      atividades: normalizarAtividadesSemanario(s.atividades, s.id)
+    }));
     return ordenarSemanarios(cleanedList);
   });
 
@@ -1452,7 +1692,8 @@ export default function App() {
   // Intercepting Setters to automatically write modifications to Firebase when user-initiated
   const setTurmas = (val: any) => {
     _setTurmas((prev: any) => {
-      const next = typeof val === "function" ? val(prev) : val;
+      let next = typeof val === "function" ? val(prev) : val;
+      next = normalizarListaTurmas(next);
       const currentUser = auth.currentUser;
       if ((currentUser || user) && !guestMode && !isSyncingFromCloud.current) {
         const cleaned = JSON.parse(JSON.stringify(next));
@@ -1864,21 +2105,9 @@ export default function App() {
             const sList: any[] = [];
             snapshot.forEach((d) => {
               const s = d.data();
-              const cleanedAtvs: any = {};
-              if (s.atividades) {
-                Object.keys(s.atividades).forEach((tId) => {
-                  const rawAtvs = (s.atividades[tId] || []).map((a: any) => formatarAtividadeUnica(a, tId));
-                  cleanedAtvs[tId] = garantirAtividadesPadraoTurma(rawAtvs, tId);
-                });
-              }
-              TURMAS.forEach((t) => {
-                if (!cleanedAtvs[t.id]) {
-                  cleanedAtvs[t.id] = garantirAtividadesPadraoTurma([], t.id);
-                }
-              });
               sList.push({
                 ...s,
-                atividades: cleanedAtvs
+                atividades: normalizarAtividadesSemanario(s.atividades, s.id)
               });
             });
             if (sList.length > 0) {
@@ -1917,7 +2146,7 @@ export default function App() {
           const unsubTurmas = onSnapshot(doc(db, "config", "turmas"), (docSnap) => {
             isSyncingFromCloud.current = true;
             if (docSnap.exists() && docSnap.data().data) {
-              _setTurmas(docSnap.data().data);
+              _setTurmas(normalizarListaTurmas(docSnap.data().data));
             }
             isSyncingFromCloud.current = false;
           }, (error) => {
@@ -3403,7 +3632,7 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
           }
 
           // Renomeia Caixa de Brinquedos para Caixa de Jogos no 2º ano
-          if (tId === "2ano-azul-vermelho" && novoNome.startsWith("Caixa de Brinquedos")) {
+          if ((tId === "2ano-azul-vermelho" || tId === "2ano-azul" || tId === "2ano-vermelho") && novoNome.startsWith("Caixa de Brinquedos")) {
             novoNome = novoNome.replace("Caixa de Brinquedos", "Caixa de Jogos");
             itemMudou = true;
           }
@@ -3448,13 +3677,14 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
     setSemanarios((prev: any) => {
       let globalMudou = false;
       const novos = prev.map((s: any) => {
+        const atvsNormalizadas = normalizarAtividadesSemanario(s.atividades, s.id);
         const novasAtividades: any = {};
         let sMudou = false;
-        Object.keys(s.atividades || {}).forEach(tId => {
-          const { novas, mudou } = migrarNomes(s.atividades[tId], tId, s.id);
+        Object.keys(atvsNormalizadas).forEach(tId => {
+          const { novas, mudou } = migrarNomes(atvsNormalizadas[tId], tId, s.id);
           const finalAtvs = garantirAtividadesPadraoTurma(novas, tId);
           novasAtividades[tId] = finalAtvs;
-          if (mudou || JSON.stringify(finalAtvs) !== JSON.stringify(s.atividades[tId])) sMudou = true;
+          if (mudou || JSON.stringify(finalAtvs) !== JSON.stringify(s.atividades?.[tId])) sMudou = true;
         });
         if (sMudou) {
           globalMudou = true;
@@ -3589,7 +3819,105 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
   }, [ATIVIDADES, atividadesPadrao]);
 
   const chave = (tId: string, aId: string) => `${activeSemId}||${tId}||${aId}`;
-  const getReg = (tId: string, aId: string) => registros[chave(tId, aId)] || null;
+  
+  const getReg = (tId: string, aId: string) => {
+    const k = chave(tId, aId);
+    if (registros[k]) return registros[k];
+
+    // Fallback inteligente para turmas 2º Ano e 3º Ano Azul e Vermelho
+    if (tId === "2ano-azul" || tId === "2ano-vermelho") {
+      const legKey = chave("2ano-azul-vermelho", aId);
+      if (registros[legKey]) return registros[legKey];
+
+      const atvAtual = sem?.atividades?.[tId]?.find((a: any) => a.id === aId);
+      if (atvAtual) {
+        const catKey = obterCategoriaPuraKey(atvAtual.nome);
+        const prefix = `${activeSemId}||2ano-azul-vermelho||`;
+        for (const rk of Object.keys(registros)) {
+          if (rk.startsWith(prefix)) {
+            const regAId = rk.split("||")[2];
+            const legAtv = sem?.atividades?.["2ano-azul-vermelho"]?.find((a: any) => a.id === regAId) ||
+                           sem?.atividades?.["2ano-azul"]?.find((a: any) => a.id === regAId);
+            if (legAtv && matchCategoryKey(obterCategoriaPuraKey(legAtv.nome), catKey)) {
+              return registros[rk];
+            }
+          }
+        }
+      }
+    }
+
+    if (tId === "3ano-azul" || tId === "3ano-vermelho") {
+      const legKey = chave("3ano-azul-vermelho", aId);
+      if (registros[legKey]) return registros[legKey];
+
+      const atvAtual = sem?.atividades?.[tId]?.find((a: any) => a.id === aId);
+      if (atvAtual) {
+        const catKey = obterCategoriaPuraKey(atvAtual.nome);
+        const prefix = `${activeSemId}||3ano-azul-vermelho||`;
+        for (const rk of Object.keys(registros)) {
+          if (rk.startsWith(prefix)) {
+            const regAId = rk.split("||")[2];
+            const legAtv = sem?.atividades?.["3ano-azul-vermelho"]?.find((a: any) => a.id === regAId) ||
+                           sem?.atividades?.["3ano-azul"]?.find((a: any) => a.id === regAId);
+            if (legAtv && matchCategoryKey(obterCategoriaPuraKey(legAtv.nome), catKey)) {
+              return registros[rk];
+            }
+          }
+        }
+      }
+    }
+
+    return null;
+  };
+
+  const getMidias = (tId: string, aId: string): any[] => {
+    const k = chave(tId, aId);
+    if (midias[k] && midias[k].length > 0) return midias[k];
+
+    if (tId === "2ano-azul" || tId === "2ano-vermelho") {
+      const legKey = chave("2ano-azul-vermelho", aId);
+      if (midias[legKey] && midias[legKey].length > 0) return midias[legKey];
+
+      const atvAtual = sem?.atividades?.[tId]?.find((a: any) => a.id === aId);
+      if (atvAtual) {
+        const catKey = obterCategoriaPuraKey(atvAtual.nome);
+        const prefix = `${activeSemId}||2ano-azul-vermelho||`;
+        for (const mk of Object.keys(midias)) {
+          if (mk.startsWith(prefix) && midias[mk]?.length > 0) {
+            const legAId = mk.split("||")[2];
+            const legAtv = sem?.atividades?.["2ano-azul-vermelho"]?.find((a: any) => a.id === legAId) ||
+                           sem?.atividades?.["2ano-azul"]?.find((a: any) => a.id === legAId);
+            if (legAtv && matchCategoryKey(obterCategoriaPuraKey(legAtv.nome), catKey)) {
+              return midias[mk];
+            }
+          }
+        }
+      }
+    }
+
+    if (tId === "3ano-azul" || tId === "3ano-vermelho") {
+      const legKey = chave("3ano-azul-vermelho", aId);
+      if (midias[legKey] && midias[legKey].length > 0) return midias[legKey];
+
+      const atvAtual = sem?.atividades?.[tId]?.find((a: any) => a.id === aId);
+      if (atvAtual) {
+        const catKey = obterCategoriaPuraKey(atvAtual.nome);
+        const prefix = `${activeSemId}||3ano-azul-vermelho||`;
+        for (const mk of Object.keys(midias)) {
+          if (mk.startsWith(prefix) && midias[mk]?.length > 0) {
+            const legAId = mk.split("||")[2];
+            const legAtv = sem?.atividades?.["3ano-azul-vermelho"]?.find((a: any) => a.id === legAId) ||
+                           sem?.atividades?.["3ano-azul"]?.find((a: any) => a.id === legAId);
+            if (legAtv && matchCategoryKey(obterCategoriaPuraKey(legAtv.nome), catKey)) {
+              return midias[mk];
+            }
+          }
+        }
+      }
+    }
+
+    return midias[k] || [];
+  };
 
   const toast$ = (msg: string, tipo = "ok") => {
     setToast({ msg, tipo });
@@ -3598,9 +3926,10 @@ Garantir o acolhimento individual de cada aluno e adaptar o ritmo conforme a nec
 
   const abrirForm = (turma: any, atv: any) => {
     const k = chave(turma.id, atv.id);
-    const ex = registros[k];
+    const ex = getReg(turma.id, atv.id);
     setFormData(ex ? { ...ex } : { status: null, justificativa: "", novaProposta: "" });
-    setMidias((m: any) => ({ ...m, [k]: m[k] || [] }));
+    const currentMids = getMidias(turma.id, atv.id);
+    setMidias((m: any) => ({ ...m, [k]: m[k] && m[k].length > 0 ? m[k] : currentMids }));
     setTurmaSel(turma);
     setAtividadeSel(atv);
     setTela("atividade");
